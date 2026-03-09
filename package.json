@@ -1,0 +1,91 @@
+{
+  "name": "cotizaciones-js",
+  "version": "1.0.0",
+  "description": "Aplicación de escritorio offline para gestión de cotizaciones automotrices",
+  "main": "main.js",
+   "author": "Francisco Jose Flores",
+  "license": "MIT",
+  "scripts": {
+    "postinstall": "electron-rebuild -f -w better-sqlite3 install-app-deps",
+    "───── Desarrollo ─────": "",
+    "rebuild": "electron-rebuild -f -w better-sqlite3",
+    "dev:frontend": "cd frontend && pnpm run dev",
+    "dev:electron": "concurrently -k -n FRONT,ELEC -c green,magenta \"pnpm run dev:frontend\" \"wait-on http://localhost:5173 && electron .\"",
+    "dev": "pnpm run dev:electron",
+    "───── Build ──────────": "",
+    "build:frontend": "cd frontend && pnpm run build",
+    "build": "pnpm run build:frontend",
+    "───── Empaquetado ────": "",
+    "dist": "pnpm run build && electron-builder",
+    "dist:linux": "pnpm run build && electron-builder --linux",
+    "dist:win": "pnpm run build && electron-builder --win",
+    "dist:mac": "pnpm run build && electron-builder --mac",
+    "───── Utilidades ─────": "",
+    "start": "electron ."
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.6.2",
+    "electron-store": "^8.1.0",
+    "pdfkit": "^0.17.2",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^4.0.3",
+    "concurrently": "^9.2.1",
+    "electron": "^34.5.8",
+    "electron-builder": "^25.1.8",
+    "wait-on": "^8.0.5"
+  },
+  "build": {
+    "appId": "com.cotizaciones.app",
+    "productName": "Cotizaciones App",
+    "copyright": "Copyright © 2026",
+    "icon": "assets/icon.ico",
+    "asar": true,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "electron/**/*",
+      "assets/**/*",
+      "frontend/dist/**/*",
+      "!node_modules/electron/**",
+      "!node_modules/electron-builder/**"
+    ],
+    "extraResources": [],
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "icon": "assets/icon.png",
+      "category": "Office"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "assets/icon.png",
+      "category": "public.app-category.business"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Cotizaciones App",
+      "installerLanguages": [
+        "es_ES"
+      ]
+    }
+  }
+}
