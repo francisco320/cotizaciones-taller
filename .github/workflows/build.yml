@@ -27,7 +27,7 @@ jobs:
       - name: Build app
         run: pnpm run dist:win
         env:
-  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Subir instalador
         uses: actions/upload-artifact@v4
         with:
