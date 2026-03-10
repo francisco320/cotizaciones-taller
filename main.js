@@ -238,14 +238,20 @@ async function createWindow() {
     });
 
     // ── Carga de URL / Archivo ─────────────────────
-    if (!app.isPackaged) {
-        mainWindow.loadURL('http://localhost:5173');
-        mainWindow.webContents.openDevTools();
-    } else {
-        mainWindow.loadFile(
-            path.join(__dirname, '..', 'frontend', 'dist', 'index.html')
-        );
-    }
+   // ── Carga de URL / Archivo ─────────────────────
+if (!app.isPackaged) {
+    mainWindow.loadURL('http://localhost:5173');
+    mainWindow.webContents.openDevTools();
+} else {
+    const indexPath = path.join(
+        process.resourcesPath,
+        'frontend',
+        'dist',
+        'index.html'
+    );
+
+    mainWindow.loadFile(indexPath);
+}
 
     // Al iniciar, solicitamos la carpeta de PDFs si aún no está configurada.
     // Esto se hace antes de mostrar la ventana para que el usuario la seleccione en el primer arranque.
