@@ -13,7 +13,7 @@
     "dev:electron": "concurrently -k -n FRONT,ELEC -c green,magenta \"pnpm run dev:frontend\" \"wait-on http://localhost:5173 && electron .\"",
     "dev": "pnpm run dev:electron",
     "───── Build ──────────": "",
-    "build:frontend": "cd frontend && pnpm run build",
+    "build:frontend": "cd frontend && cross-env VITE_ELECTRON_BUILD=true pnpm run build",
     "build": "pnpm run build:frontend",
     "───── Empaquetado ────": "",
     "dist": "pnpm run build && electron-builder",
