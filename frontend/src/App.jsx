@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { HashRouter, Routes, Route } from 'react-router-dom'
 import { Layout } from './components/Layout'
 import { ListaCotizaciones } from './pages/ListaCotizaciones'
 import { NuevaCotizacion } from './pages/NuevaCotizacion'
@@ -6,7 +6,7 @@ import { VerCotizacion } from './pages/VerCotizacion'
 
 function App() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<ListaCotizaciones />} />
@@ -15,7 +15,7 @@ function App() {
           <Route path="cotizacion/:id/editar" element={<NuevaCotizacion />} />
         </Route>
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   )
 }
 
