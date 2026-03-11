@@ -243,14 +243,9 @@ if (!app.isPackaged) {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
 } else {
-    const indexPath = path.join(
-        process.resourcesPath,
-        'frontend',
-        'dist',
-        'index.html'
-    );
-
+    const indexPath = path.join(__dirname, 'frontend', 'dist', 'index.html');
     mainWindow.loadFile(indexPath);
+    mainWindow.webContents.openDevTools();
 }
 
     // Al iniciar, solicitamos la carpeta de PDFs si aún no está configurada.
