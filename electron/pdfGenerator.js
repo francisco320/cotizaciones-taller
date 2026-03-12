@@ -18,11 +18,20 @@ async function generarPDF(cotizacion, filePath, options = {}) {
     return new Promise((resolve, reject) => {
         // Buscar el logo dinámicamente si no se pasa uno por parámetro
         if (!options.logoPath) {
+            // En modo desarrollo, __dirname apunta a /.../electron
+            // En modo empaquetado, app.getAppPath() apunta a /.../resources/app.asar
+            const basePath = app.isPackaged ? app.getAppPath() : __dirname;
+
             const candidates = [
-                path.join(app.isPackaged ? process.resourcesPath : __dirname, '..', 'assets', 'logo.png'),
-                path.join(app.isPackaged ? process.resourcesPath : __dirname, '..', 'frontend', 'dist', 'logo.png'),
-                path.join(app.isPackaged ? process.resourcesPath : __dirname, '..', 'frontend', 'public', 'logo.png'),
+                // Desarrollo: assets/ en la raíz del proyecto
+                path.join(__dirname, '..', 'assets', 'logo.png'),
+                // Empaquetado: assets/ dentro del ASAR
+                path.join(basePath, 'assets', 'logo.png'),
+                // Si el logo se genera en el frontend (por ejemplo, Vite), buscarlo allí también
+                path.join(__dirname, '..', 'frontend', 'dist', 'logo.png'),
+                path.join(__dirname, '..', 'frontend', 'public', 'logo.png'),
             ];
+
             for (const p of candidates) {
                 if (fs.existsSync(p)) {
                     options.logoPath = p;
