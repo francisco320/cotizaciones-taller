@@ -241,11 +241,11 @@ async function createWindow() {
    // ── Carga de URL / Archivo ─────────────────────
 if (!app.isPackaged) {
     mainWindow.loadURL('http://localhost:5173');
-    mainWindow.webContents.openDevTools();
+    
 } else {
     const indexPath = path.join(__dirname, 'frontend', 'dist', 'index.html');
     mainWindow.loadFile(indexPath);
-    mainWindow.webContents.openDevTools();
+  
 }
 
     // Al iniciar, solicitamos la carpeta de PDFs si aún no está configurada.

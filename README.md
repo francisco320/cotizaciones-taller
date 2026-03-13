@@ -1,121 +1,120 @@
-# Cotizaciones JS
+# Cotizaciones JS (Electron + SQLite)
 
-Sistema integral para la gestión, creación y generación de cotizaciones en PDF. Desarrollado con el stack MERN (MongoDB, Express, React, Node.js).
+Aplicación de escritorio offline para gestionar cotizaciones automotrices con generación de PDFs.
 
-## 🚀 Características
+## 🧭 Descripción
 
-*   **Gestión de Cotizaciones:** Crear, editar, ver, listar y eliminar cotizaciones.
-*   **Generación de PDF:** PDF dinámico con diseño profesional usando `pdfkit`.
-*   **Cálculos Automáticos:** Subtotales, IVA (configurable) y totales calculados en tiempo real.
-*   **Interfaz Moderna:** Frontend reactivo construido con Vite y estilizado con Tailwind CSS.
-*   **Vista Previa:** Previsualización instantánea del PDF generado en el navegador.
+Esta app es un proyecto Electron + React + SQLite para crear, editar, listar, eliminar cotizaciones y generar PDFs profesionales.
 
-## 🛠️ Tecnologías
+## ✅ Características principales
 
-### Backend
-*   **Node.js** & **Express**: Servidor API RESTful.
-*   **MongoDB** & **Mongoose**: Base de datos NoSQL y modelado de objetos.
-*   **PDFKit**: Librería robusta para la generación de documentos PDF.
+- CRUD de cotizaciones (SQLite en el proceso main)
+- Items de cotización con cálculos automáticos (subtotal, IVA, total)
+- Generación de PDF con `pdfkit`
+- Previsualización de PDF embebido en la UI
+- Guardado de PDFs en carpeta seleccionada por el usuario
+- Configuración local de carpeta de PDFs (`electron-store` o fallback JSON)
 
-### Frontend
-*   **React**: Biblioteca para construir interfaces de usuario.
-*   **Vite**: Entorno de desarrollo ultrarrápido.
-*   **Tailwind CSS**: Framework de utilidades CSS para diseño rápido y responsivo.
-*   **React Router**: Enrutamiento declarativo para aplicaciones React.
-
-## 📂 Estructura del Proyecto
+## 📁 Estructura del proyecto
 
 ```
 cotizaciones-js/
-├── src/                # Lógica del Backend
-│   ├── config/         # Configuración (BD, etc.)
-│   ├── lib/            # Funciones puras y cálculos de negocio
-│   ├── models/         # esquemas de Mongoose (Cotizacion, Counter)
-│   ├── pdf/            # Generación y diseño de PDF (Layout, Generator)
-│   ├── routes/         # Definición de rutas de la API
-│   ├── services/       # Lógica de negocio y casos de uso
-│   ├── app.js          # Configuración de la aplicación Express
-│   └── index.js        # Punto de entrada del servidor
-├── frontend/           # Aplicación React
-│   ├── src/
-│   │   ├── api/        # Cliente HTTP para conectar con el backend
-│   │   ├── components/ # Componentes reutilizables
-│   │   ├── config/     # Configuración del frontend (Datos empresa, etc.)
-│   │   ├── pages/      # Vistas de la aplicación
-│   │   └── lib/        # Utilidades compartidas (cálculos)
-│   └── ...
-├── scripts/            # Scripts de utilidad y pruebas
-└── ...
+├── electron/            # Lógica de Electron (DB SQLite, PDF, preload)
+├── frontend/            # App React + Vite
+├── assets/              # Iconos / recursos
+├── database.sqlite*     # Base de datos SQLite local (runtime)
+├── main.js              # Proceso principal de Electron
+├── package.json         # Scripts y dependencias Electron
+└── README.md            # Este archivo
 ```
 
-## ⚙️ Instalación y Configuración
+## 🧰 Tecnologías
 
-### Prerrequisitos
-*   Node.js (v18+ recomendado)
-*   MongoDB (corriendo localmente o URI remota)
-*   pnpm (o npm)
+- Electron
+- React + Vite
+- better-sqlite3 (SQLite)
+- PDFKit (generación de PDF)
+- Tailwind CSS (UI)
+- uuid
 
-### 1. Clonar el repositorio
+## 🚀 Instalación y desarrollo
+
+1. Instala dependencias en la raíz
+
 ```bash
-git clone <url-del-repositorio>
-cd cotizaciones-js
-```
-
-### 2. Configurar el Backend
-
-Instalar dependencias:
-```bash
-npm install
-# o con pnpm
+cd /home/franciscojose/Documents/cotizaciones-js
 pnpm install
 ```
 
-Variables de entorno (opcional):
-Puedes crear un archivo `.env` en la raíz o configurar las variables en tu entorno.
-*   `PORT`: Puerto del servidor (por defecto `3000`).
-*   `MONGODB_URI`: Cadena de conexión a MongoDB (por defecto `mongodb://localhost:27017/cotizaciones`).
-*   `LOGO_PATH`: Ruta al archivo de imagen para el logo en el PDF.
+2. Instala dependencias del frontend
 
-Iniciar el servidor de desarrollo:
-```bash
-npm run dev
-```
-
-### 3. Configurar el Frontend
-
-Navegar al directorio del frontend e instalar dependencias:
 ```bash
 cd frontend
-npm install
-# o con pnpm
 pnpm install
 ```
 
-Iniciar el servidor de desarrollo del frontend:
+3. Ejecuta en modo desarrollo
+
 ```bash
-npm run dev
+cd /home/franciscojose/Documents/cotizaciones-js
+pnpm run dev
 ```
 
-El frontend estará disponible generalmente en `http://localhost:5173`.
+Esto ejecuta `pnpm run dev:electron`, que arranca Vite y luego inicia Electron.
 
-## 📖 Uso
+### Scripts útiles
 
-1.  Abre el frontend en tu navegador.
-2.  Navega a "Nueva Cotización" para crear un documento.
-3.  Ingresa los datos del cliente, vehículo e ítems.
-4.  Guarda la cotización.
-5.  Desde el listado o el detalle, puedes:
-    *   **Ver PDF:** Abre una vista previa en el navegador.
-    *   **Descargar PDF:** Descarga el archivo generado.
-    *   **Editar:** Modifica los datos de la cotización.
-    *   **Borrar:** Elimina la cotización permanentemente.
+- `pnpm run dev`: run frontend + electron (desarrollo)
+- `pnpm run dev:frontend`: arranca solo Vite
+- `pnpm run dev:electron`: arranca frontend + electron con `wait-on`
+- `pnpm run start`: iniciar la app empaquetada local (Electron)
+- `pnpm run build`: compila frontend para producción
+- `pnpm run dist`: build + empaquetado con electron-builder
 
-## 🔧 Personalización
+> Nota: `pnpm run postinstall` ejecuta `electron-rebuild` para `better-sqlite3`.
 
-*   **Datos de la Empresa:** Edita `frontend/src/config/company.js` para cambiar el nombre, RIF, dirección, teléfono y email que aparecen por defecto en los formularios.
-*   **Diseño del PDF:** Modifica `src/pdf/layout.js` para ajustar márgenes, colores y tamaños de fuente.
-*   **Lógica PDF:** Edita `src/pdf/generator.js` para cambiar la estructura y contenido del PDF.
+## 📝 Uso básico
 
-## 📄 Licencia
+1. Abre la app.
+2. Crea una cotización nueva (cliente, vehículo/bomba, items, IVA, observaciones).
+3. Guarda.
+4. Desde el listado puedes ver, editar, borrar y previsualizar PDF.
+5. En el detalle puedes generar y guardar el PDF en una carpeta seleccionada.
 
-Este proyecto está bajo la Licencia MIT.
+## 🔧 Configuración específica
+
+### Carpeta de PDFs
+
+La app recuerda la carpeta de PDF con `electron-store`. Si no hay carpeta configurada, pide una al primer uso.
+
+### Base de datos
+
+SQLite se almacena en:
+- En desarrollo: `database.sqlite` en la raíz
+- En empaquetado: `${app.getPath('userData')}/database.sqlite`
+
+### Cambios en PDF
+
+El diseño y generación de PDF están en `electron/layout.js` y `electron/pdfGenerator.js`.
+
+## 🧪 Validación rápida
+
+- Abrir el proyecto y ejecutar `pnpm run dev`
+- Crear un nuevo registro en `frontend`
+- Generar PDF y verificar archivo guardado
+- Abrir y eliminar cotizaciones
+
+## 📦 Empaquetado
+
+- `pnpm run dist:linux`
+- `pnpm run dist:win`
+- `pnpm run dist:mac`
+
+## ⚠️ Notas importantes
+
+- Asegúrate de ejecutar `pnpm install` en la raíz y en `frontend` antes de correr `pnpm run dev`.
+- Si el PDF no se genera, verifica la carpeta de salida (seleccionada por usuario).
+
+## Licencia
+
+MIT
