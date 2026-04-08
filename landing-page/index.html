@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Cotizaciones JS - Aplicación de escritorio moderna y offline para la generación de cotizaciones y PDFs profesionales.">
+    <title>Cotizaciones JS - Genera Cotizaciones en Segundos</title>
+    
+    <!-- Google Fonts: Oufit & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    
+    <!-- Background Decorators -->
+    <div class="glow-orb orb-1"></div>
+    <div class="glow-orb orb-2"></div>
+    <div class="bg-grid"></div>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo">
+                <span class="logo-icon">C</span>
+                <span class="logo-text">Cotizaciones JS</span>
+            </div>
+            <div class="nav-links">
+                <a href="#features">Características</a>
+                <a href="#demo">Preview</a>
+                <a href="#" class="btn btn-outline">Repositorio</a>
+                <a href="#download" class="btn btn-primary">Descargar</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="hero">
+        <div class="hero-content">
+            <div class="badge">🚀 Versión 1.0.0 Ya Disponible</div>
+            <h1 class="hero-heading">Cotiza de manera <span class="text-gradient">rápida</span> y profesional.</h1>
+            <p class="hero-description">
+                La aplicación de escritorio definitiva, 100% offline, para crear, gestionar y exportar cotizaciones a PDF en pocos clics. Diseñada especialmente para talleres y servicios.
+            </p>
+            <div class="hero-actions">
+                <a href="#download" class="btn btn-primary btn-large">Descargar Gratis</a>
+                <a href="#features" class="btn btn-secondary btn-large">Explorar Funciones</a>
+            </div>
+        </div>
+        
+        <!-- App Mockup UI done in CSS -->
+        <div class="hero-visual">
+            <div class="app-mockup glass-panel">
+                <div class="mockup-header">
+                    <div class="mac-buttons">
+                        <span></span><span></span><span></span>
+                    </div>
+                    <div class="mockup-title">Cotizaciones JS - Dashboard</div>
+                </div>
+                <div class="mockup-body">
+                    <div class="mockup-sidebar">
+                        <div class="skeleton-line w-full"></div>
+                        <div class="skeleton-line w-full mt-2"></div>
+                        <div class="skeleton-line w-3/4 mt-2"></div>
+                        <div class="skeleton-line w-full mt-2"></div>
+                    </div>
+                    <div class="mockup-main">
+                        <div class="mockup-card">
+                            <div class="skeleton-line w-1/2"></div>
+                            <div class="mockup-chart pt-3">
+                                <div class="bar h-8"></div>
+                                <div class="bar h-12"></div>
+                                <div class="bar h-6"></div>
+                                <div class="bar h-16"></div>
+                                <div class="bar h-10"></div>
+                            </div>
+                        </div>
+                        <div class="mockup-row pt-3">
+                            <div class="mockup-pdf glass-panel">
+                                📄 PDF Preview
+                            </div>
+                            <div class="mockup-list">
+                                <div class="skeleton-line w-full"></div>
+                                <div class="skeleton-line w-full mt-2"></div>
+                                <div class="skeleton-line w-5/6 mt-2"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Features Section -->
+    <section id="features" class="features">
+        <div class="section-title">
+            <h2>Por qué elegir Cotizaciones JS</h2>
+            <p>Herramientas diseñadas para potenciar la productividad de tu negocio.</p>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card glass-panel">
+                <div class="feature-icon">🔒</div>
+                <h3>100% Offline</h3>
+                <p>Toda tu información se procesa y guarda localmente usando SQLite. Privacidad garantizada sin depender de servidores.</p>
+            </div>
+            <div class="feature-card glass-panel">
+                <div class="feature-icon">📄</div>
+                <h3>PDFs Profesionales</h3>
+                <p>Genera documentos PDF en formato A4 listos para imprimir o enviar. Con tu logo, detalles del vehículo y cálculos al instante.</p>
+            </div>
+            <div class="feature-card glass-panel">
+                <div class="feature-icon">⚡</div>
+                <h3>Cálculos Automáticos</h3>
+                <p>El sistema se encarga del cálculo automático del subtotal, IVA aplicable y total. Adiós a las calculadoras manuales.</p>
+            </div>
+            <div class="feature-card glass-panel">
+                <div class="feature-icon">🏎️</div>
+                <h3>Especial Automotriz</h3>
+                <p>Campos preparados para registros de patentes, kilómetros y modelo del vehículo integrados estéticamente en cada cotización.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Download Section -->
+    <section id="download" class="cta-section">
+        <div class="cta-box glass-panel">
+            <h2>Comienza a cotizar hoy mismo</h2>
+            <p>Descarga la última versión de la aplicación para Windows o Linux.</p>
+            <div class="download-links">
+                <a href="releases/Cotizaciones-JS-Linux.AppImage" download="Cotizaciones-JS-Linux.AppImage" class="btn btn-primary d-btn">
+                    <span>🐧</span> Descargar para Linux
+                </a>
+                <a href="releases/Cotizaciones-JS-Windows.exe" download="Cotizaciones-JS-Windows.exe" class="btn btn-outline d-btn">
+                    <span>🪟</span> Descargar para Windows
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-logo">Cotizaciones JS</div>
+            <p>Aplicación de código abierto construida con Electron, React y SQLite.</p>
+            <p class="copyright">© 2026 Francisco - Todos los derechos reservados.</p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
