@@ -235,7 +235,7 @@ function drawServiceInfo(doc, cotizacion, startY) {
     const padding = 10;
     const lineHeight = 14;
     const headerHeight = 16;
-    const blockHeight = 70;
+    const blockHeight = 90;
 
     // Card-style background
     doc.roundedRect(margin, startY, blockWidth, blockHeight, 4)
@@ -259,6 +259,9 @@ function drawServiceInfo(doc, cotizacion, startY) {
         drawField(doc, 'Marca:', v.marca || v.vehiculo, startCol, y);
         drawField(doc, 'Modelo:', v.modelo, startCol + colW, y);
         drawField(doc, 'Serial:', v.serial || v.placa, startCol + colW * 2, y);
+        // Nueva fila para campo adicional "Otro" específico de la bomba
+        const extraY = y + lineHeight;
+        drawField(doc, 'Otro:', v.otroBomba || v.otro || '—', startCol, extraY, { maxWidth: blockWidth - padding * 2 });
     } else {
         drawField(doc, 'Vehículo:', v.vehiculo, startCol, y);
         drawField(doc, 'Modelo:', v.modelo, startCol + colW, y);
@@ -382,19 +385,19 @@ function drawTotals(doc, cotizacion, startY) {
     doc.text(formatMoney(resumen.total), xTotalBlock + 90, y + 8, { width: wTotalBlock - 98, align: 'right' });
 
     // Firma / aceptación
-    if (cotizacion.elaboradoPor) {
-        const labelY = startY;
-        const fecha = formatDate(cotizacion.fechaAceptacion || cotizacion.fechaEmision);
+    // Asegurarse de que siempre haya un valor para 'elaboradoPor'
+    const firmadoPor = cotizacion.elaboradoPor || 'Lariannys Villazana';
+    const labelY = startY;
+    const fecha = formatDate(cotizacion.fechaAceptacion || cotizacion.fechaEmision);
 
+    doc.font('Helvetica').fontSize(layout.fonts.small).fillColor(layout.colors.light);
+    doc.text('Aceptada, firma y/o sello:', margin, labelY);
+    doc.font('Helvetica-Bold').fontSize(layout.fonts.body).fillColor(layout.colors.text);
+    doc.text(firmadoPor, margin, labelY + 12);
+
+    if (fecha && fecha !== '—') {
         doc.font('Helvetica').fontSize(layout.fonts.small).fillColor(layout.colors.light);
-        doc.text('Aceptada, firma y/o sello:', margin, labelY);
-        doc.font('Helvetica-Bold').fontSize(layout.fonts.body).fillColor(layout.colors.text);
-        doc.text(cotizacion.elaboradoPor, margin, labelY + 12);
-
-        if (fecha && fecha !== '—') {
-            doc.font('Helvetica').fontSize(layout.fonts.small).fillColor(layout.colors.light);
-            doc.text(`Fecha: ${fecha}`, margin, labelY + 26);
-        }
+        doc.text(`Fecha: ${fecha}`, margin, labelY + 26);
     }
 
     return y + totalBoxHeight + 6;

@@ -27,6 +27,7 @@ export function NuevaCotizacion() {
   const [marcaBomba, setMarcaBomba] = useState('')
   const [modeloBomba, setModeloBomba] = useState('')
   const [serialBomba, setSerialBomba] = useState('')
+  const [otroBomba, setOtroBomba] = useState('')
 
   const [items, setItems] = useState([emptyItem()])
   const [aplicaIVA, setAplicaIVA] = useState(false)
@@ -52,11 +53,12 @@ export function NuevaCotizacion() {
           setMarcaBomba(data.marcaBomba || data.vehiculo?.marca || '')
           setModeloBomba(data.modeloBomba || '')
           setSerialBomba(data.serialBomba || data.vehiculo?.serial || '')
+          setOtroBomba(data.otroBomba || '')
 
           setItems(data.items && data.items.length > 0 ? data.items : [emptyItem()])
           setAplicaIVA(data.aplicaIVA)
           setPorcentajeIVA(data.porcentajeIVA)
-          setElaboradoPor(data.elaboradoPor || '')
+          setElaboradoPor(data.elaboradoPor || 'Lariannys Villazana')
           setObservaciones(data.observaciones || '')
         })
         .catch(err => setError(err.message))
@@ -97,10 +99,11 @@ export function NuevaCotizacion() {
       marcaBomba: tipoServicio === 'bomba_inyeccion' ? marcaBomba : undefined,
       modeloBomba: tipoServicio === 'bomba_inyeccion' ? modeloBomba : undefined,
       serialBomba: tipoServicio === 'bomba_inyeccion' ? serialBomba : undefined,
+      otroBomba: tipoServicio === 'bomba_inyeccion' ? otroBomba : undefined,
       items: items.filter((i) => i.descripcion.trim()),
       aplicaIVA,
       porcentajeIVA,
-      elaboradoPor: elaboradoPor.trim() || undefined,
+      elaboradoPor: elaboradoPor.trim() || 'Lariannys Villazana',
       observaciones: observaciones.trim() || undefined,
     }
 
@@ -189,6 +192,7 @@ export function NuevaCotizacion() {
               <Input label="Marca" value={marcaBomba} onChange={setMarcaBomba} />
               <Input label="Modelo" value={modeloBomba} onChange={setModeloBomba} />
               <Input label="Serial" value={serialBomba} onChange={setSerialBomba} className="sm:col-span-2" />
+              <Input label="Otro" value={otroBomba} onChange={setOtroBomba} className="sm:col-span-2" />
             </div>
           )}
         </section>
