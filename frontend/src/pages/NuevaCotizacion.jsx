@@ -327,7 +327,7 @@ export function NuevaCotizacion() {
             </p>
           </div>
           <div className="mt-4">
-            <Input label="Elaborado por" value={elaboradoPor} onChange={setElaboradoPor} />
+            <Input label="Elaborado por" value={elaboradoPor} onChange={setElaboradoPor} placeholder = "" />
           </div>
         </section>
 

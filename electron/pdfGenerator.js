@@ -113,8 +113,8 @@ function drawHeader(doc, cotizacion, logoPath, startY) {
 
             const textBlockHeight = titleHeight + contactHeight;
 
-            // Calculamos Y para dibujar el logo de forma que su centro vertical coincida con el centro del bloque de texto
-            const logoY = startY + Math.max(0, Math.round((textBlockHeight - drawH) / 2));
+            // Alinear la parte superior del logo con el tope del membrete
+            const logoY = startY;
 
             doc.image(logoPath, margin, logoY, { width: drawW, height: drawH });
             headerTextX += drawW + (logoCfg.spacing || 12);
@@ -256,12 +256,18 @@ function drawServiceInfo(doc, cotizacion, startY) {
     const startCol = margin + padding;
 
     if (tipo === 'bomba_inyeccion') {
-        drawField(doc, 'Marca:', v.marca || v.vehiculo, startCol, y);
-        drawField(doc, 'Modelo:', v.modelo, startCol + colW, y);
-        drawField(doc, 'Serial:', v.serial || v.placa, startCol + colW * 2, y);
+        // Soportar campos enviados desde el frontend como propiedades top-level
+        const marca = cotizacion.marcaBomba || v.marca || v.vehiculo || '—';
+        const modeloVal = cotizacion.modeloBomba || v.modelo || '—';
+        const serial = cotizacion.serialBomba || v.serial || v.placa || '—';
+        const otroVal = cotizacion.otroBomba || cotizacion.otro || v.otroBomba || v.otro || '—';
+
+        drawField(doc, 'Marca:', marca, startCol, y);
+        drawField(doc, 'Modelo:', modeloVal, startCol + colW, y);
+        drawField(doc, 'Serial:', serial, startCol + colW * 2, y);
         // Nueva fila para campo adicional "Otro" específico de la bomba
         const extraY = y + lineHeight;
-        drawField(doc, 'Otro:', v.otroBomba || v.otro || '—', startCol, extraY, { maxWidth: blockWidth - padding * 2 });
+        drawField(doc, 'Otro:', otroVal, startCol, extraY, { maxWidth: blockWidth - padding * 2 });
     } else {
         drawField(doc, 'Vehículo:', v.vehiculo, startCol, y);
         drawField(doc, 'Modelo:', v.modelo, startCol + colW, y);

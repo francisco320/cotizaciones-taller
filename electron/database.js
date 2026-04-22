@@ -66,6 +66,7 @@ function initDB(db) {
                 ALTER TABLE cotizaciones ADD COLUMN marcaBomba TEXT;
                 ALTER TABLE cotizaciones ADD COLUMN modeloBomba TEXT;
                 ALTER TABLE cotizaciones ADD COLUMN serialBomba TEXT;
+                ALTER TABLE cotizaciones ADD COLUMN otroBomba TEXT;
             `);
         }
     } catch (err) {
@@ -113,6 +114,7 @@ function createCotizacion(data) {
       @tipoServicio, @modelo, @placa, @color, @marcaBomba, @modeloBomba, @serialBomba
     )
   `);
+
 
     const insertItem = db.prepare(`
     INSERT INTO items (cotizacionId, descripcion, precioBase, cantidad)
