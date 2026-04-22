@@ -4,7 +4,13 @@
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
-const { app } = require('electron');
+let app;
+try {
+    const electron = require('electron');
+    app = electron && electron.app ? electron.app : { isPackaged: false, getAppPath: () => __dirname };
+} catch (err) {
+    app = { isPackaged: false, getAppPath: () => __dirname };
+}
 const layout = require('./layout');
 
 /**
@@ -68,14 +74,50 @@ function drawHeader(doc, cotizacion, logoPath, startY) {
     let y = startY;
 
     // ----- Header -----
-    const logoW = layout.logo?.width || 100;
-    const logoH = layout.logo?.height || 80;
+    const logoCfg = layout.logo || {};
+    const defaultLogoW = logoCfg.width || 100;
+    const defaultLogoH = logoCfg.height || 80;
+    const printableWidth = doc.page.width - margin * 2;
     let headerTextX = margin;
+    // drawW/drawH represent el tamaño efectivo que dibujaremos
+    let drawW = defaultLogoW;
+    let drawH = defaultLogoH;
 
     if (logoPath) {
         try {
-            doc.image(logoPath, margin, y, { width: logoW, height: logoH, fit: [logoW, logoH], align: 'center', valign: 'center' });
-            headerTextX += logoW + 20;
+            const img = doc.openImage(logoPath);
+            const imgW = img.width || defaultLogoW;
+            const imgH = img.height || defaultLogoH;
+
+            const maxLogoW = Math.min(defaultLogoW || 150, Math.floor(printableWidth * (logoCfg.maxFraction || 0.22)));
+            const maxLogoH = logoCfg.maxHeight || defaultLogoH;
+
+            const wScale = maxLogoW / imgW;
+            const hScale = maxLogoH / imgH;
+            const scale = Math.min(1, wScale, hScale);
+
+            drawW = Math.round(imgW * scale);
+            drawH = Math.round(imgH * scale);
+
+            // Calcular altura estimada del bloque de texto del membrete para centrar verticalmente el logo
+            const companyName = cotizacion.empresa?.nombre || 'Empresa';
+            // Medimos usando los mismos estilos que se aplicarán al texto
+            doc.font('Helvetica-Bold').fontSize(layout.fonts.title || 20);
+            const titleHeight = doc.heightOfString(companyName, { width: 300 });
+
+            doc.font('Helvetica').fontSize(layout.fonts.small || 9);
+            let contactHeight = 0;
+            if (cotizacion.empresa?.telefono) contactHeight += 12;
+            if (cotizacion.empresa?.email) contactHeight += 12;
+            if (cotizacion.empresa?.direccion) contactHeight += doc.heightOfString(cotizacion.empresa.direccion, { width: 300 }) + 4;
+
+            const textBlockHeight = titleHeight + contactHeight;
+
+            // Calculamos Y para dibujar el logo de forma que su centro vertical coincida con el centro del bloque de texto
+            const logoY = startY + Math.max(0, Math.round((textBlockHeight - drawH) / 2));
+
+            doc.image(logoPath, margin, logoY, { width: drawW, height: drawH });
+            headerTextX += drawW + (logoCfg.spacing || 12);
         } catch (err) {
             console.warn('Could not load logo:', err.message);
         }
@@ -122,7 +164,7 @@ function drawHeader(doc, cotizacion, logoPath, startY) {
         doc.font('Helvetica').text(formatDate(cotizacion.fechaVencimiento), 0, topY, { align: 'right', margin: margin, width: rightMargin });
     }
 
-    let nextY = Math.max(y, startY + logoH, topY + 20) + 15;
+    let nextY = Math.max(y, startY + drawH, topY + 20) + 15;
 
     // Line separator
     doc.moveTo(margin, nextY).lineTo(rightMargin, nextY).lineWidth(1).strokeColor(layout.colors.border || '#e6e8eb').stroke();

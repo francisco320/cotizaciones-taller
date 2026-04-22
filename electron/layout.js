@@ -11,6 +11,12 @@ module.exports = {
   logo: {
     width: 120,      // Un poco más grande para aprovechar el ancho
     height: 80,
+    // Máximo porcentaje del ancho imprimible que el logo puede ocupar
+    maxFraction: 0.22,
+    // Espacio (px) entre el logo y el bloque de texto del membrete
+    spacing: 12,
+    // Altura máxima permitida para el logo. Si no se especifica, se usa `height`.
+    maxHeight: 120,
   },
   fonts: {
     title: 22,
