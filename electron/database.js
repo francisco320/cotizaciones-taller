@@ -66,8 +66,12 @@ function initDB(db) {
                 ALTER TABLE cotizaciones ADD COLUMN marcaBomba TEXT;
                 ALTER TABLE cotizaciones ADD COLUMN modeloBomba TEXT;
                 ALTER TABLE cotizaciones ADD COLUMN serialBomba TEXT;
-                ALTER TABLE cotizaciones ADD COLUMN otroBomba TEXT;
             `);
+        }
+
+        const hasOtroBomba = tableInfo.some(column => column.name === 'otroBomba');
+        if (!hasOtroBomba) {
+            db.exec(`ALTER TABLE cotizaciones ADD COLUMN otroBomba TEXT;`);
         }
     } catch (err) {
         console.warn('Error verifying new columns:', err);
