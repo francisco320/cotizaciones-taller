@@ -74,52 +74,55 @@ function drawHeader(doc, cotizacion, logoPath, startY) {
     let y = startY;
 
     // ----- Header -----
+    const logoCfg = layout.logo || {};
+    const defaultLogoW = logoCfg.width || 100;
+    const defaultLogoH = logoCfg.height || 80;
     const printableWidth = doc.page.width - margin * 2;
     let headerTextX = margin;
-
-    // Calcular primero la altura del bloque de texto del membrete
-    const companyName = cotizacion.empresa?.nombre || 'Empresa';
-    doc.font('Helvetica-Bold').fontSize(layout.fonts.title || 20);
-    const titleHeight = doc.heightOfString(companyName, { width: 300 }) + 4; // Add padding
-
-    doc.font('Helvetica').fontSize(layout.fonts.small || 9);
-    let contactHeight = 0;
-    if (cotizacion.empresa?.telefono) contactHeight += 12;
-    if (cotizacion.empresa?.email) contactHeight += 12;
-    if (cotizacion.empresa?.direccion) contactHeight += doc.heightOfString(cotizacion.empresa.direccion, { width: 300 }) + 4;
-
-    const textBlockHeight = titleHeight + contactHeight;
-    let drawW = 100;
-    let drawH = textBlockHeight > 0 ? textBlockHeight : 80;
+    // drawW/drawH represent el tamaño efectivo que dibujaremos
+    let drawW = defaultLogoW;
+    let drawH = defaultLogoH;
 
     if (logoPath) {
         try {
             const img = doc.openImage(logoPath);
-            const imgW = img.width || 100;
-            const imgH = img.height || 80;
+            const imgW = img.width || defaultLogoW;
+            const imgH = img.height || defaultLogoH;
 
-            // Escalar el logo para que su altura coincida exactamente con la del bloque de texto
-            const scale = textBlockHeight / imgH;
-            
+            const maxLogoW = Math.min(defaultLogoW || 150, Math.floor(printableWidth * (logoCfg.maxFraction || 0.22)));
+            const maxLogoH = logoCfg.maxHeight || defaultLogoH;
+
+            const wScale = maxLogoW / imgW;
+            const hScale = maxLogoH / imgH;
+            const scale = Math.min(1, wScale, hScale);
+
             drawW = Math.round(imgW * scale);
-            drawH = Math.round(textBlockHeight);
+            drawH = Math.round(imgH * scale);
 
-            // Evitar que el logo sea extremadamente ancho
-            const maxLogoW = Math.floor(printableWidth * 0.4);
-            if (drawW > maxLogoW) {
-                const reduceScale = maxLogoW / drawW;
-                drawW = maxLogoW;
-                drawH = Math.round(drawH * reduceScale);
-            }
+            // Calcular altura estimada del bloque de texto del membrete para centrar verticalmente el logo
+            const companyName = cotizacion.empresa?.nombre || 'Empresa';
+            // Medimos usando los mismos estilos que se aplicarán al texto
+            doc.font('Helvetica-Bold').fontSize(layout.fonts.title || 20);
+            const titleHeight = doc.heightOfString(companyName, { width: 300 });
 
-            doc.image(logoPath, margin, startY, { width: drawW, height: drawH });
-            headerTextX += drawW + (layout.logo?.spacing || 12);
+            doc.font('Helvetica').fontSize(layout.fonts.small || 9);
+            let contactHeight = 0;
+            if (cotizacion.empresa?.telefono) contactHeight += 12;
+            if (cotizacion.empresa?.email) contactHeight += 12;
+            if (cotizacion.empresa?.direccion) contactHeight += doc.heightOfString(cotizacion.empresa.direccion, { width: 300 }) + 4;
+
+            const textBlockHeight = titleHeight + contactHeight;
+
+            // Alinear la parte superior del logo con el tope del membrete
+            const logoY = startY;
+
+            doc.image(logoPath, margin, logoY, { width: drawW, height: drawH });
+            headerTextX += drawW + (logoCfg.spacing || 12);
         } catch (err) {
             console.warn('Could not load logo:', err.message);
         }
     }
 
-    // Dibujar el texto a la derecha del logo
     // Company Name
     doc.font('Helvetica-Bold').fontSize(layout.fonts.title || 20).fillColor(layout.colors.header);
     doc.text(cotizacion.empresa?.nombre || 'Empresa', headerTextX, y, { width: 300 });
@@ -174,9 +177,9 @@ function drawClientInfo(doc, cotizacion, startY) {
     const padding = 10;
     const lineHeight = 14;
     const headerHeight = 16;
-    
+
     // Calculamos el alto dinámicamente o mantenemos uno base
-    const blockHeight = 75; 
+    const blockHeight = 75;
 
     // Card-style background
     doc.roundedRect(margin, startY, blockWidth, blockHeight, 4)
@@ -208,10 +211,10 @@ function drawClientInfo(doc, cotizacion, startY) {
 
     // Fila 3: DIRECCIÓN (Abarcando todo el ancho y con letra más pequeña)
     const fullWidth = blockWidth - (padding * 2);
-    
+
     doc.font('Helvetica-Bold').fontSize(8); // Tamaño reducido para el label
     doc.text('Dirección:', col1, y, { continued: true });
-    
+
     doc.font('Helvetica').fontSize(8); // Tamaño reducido para el valor
     doc.text(` ${cotizacion.cliente?.direccion || '—'}`, {
         width: fullWidth,
