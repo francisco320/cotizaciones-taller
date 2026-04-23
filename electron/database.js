@@ -107,11 +107,11 @@ function createCotizacion(data) {
     INSERT INTO cotizaciones (
       numero, fechaEmision, fechaVencimiento, empresa, cliente, vehiculo,
       aplicaIVA, porcentajeIVA, elaboradoPor, observaciones, createdAt, updatedAt,
-      tipoServicio, modelo, placa, color, marcaBomba, modeloBomba, serialBomba
+      tipoServicio, modelo, placa, color, marcaBomba, modeloBomba, serialBomba, otroBomba
     ) VALUES (
       @numero, @fechaEmision, @fechaVencimiento, @empresa, @cliente, @vehiculo,
       @aplicaIVA, @porcentajeIVA, @elaboradoPor, @observaciones, @createdAt, @updatedAt,
-      @tipoServicio, @modelo, @placa, @color, @marcaBomba, @modeloBomba, @serialBomba
+      @tipoServicio, @modelo, @placa, @color, @marcaBomba, @modeloBomba, @serialBomba, @otroBomba
     )
   `);
 
@@ -142,6 +142,7 @@ function createCotizacion(data) {
             marcaBomba: dataTx.marcaBomba || null,
             modeloBomba: dataTx.modeloBomba || null,
             serialBomba: dataTx.serialBomba || null,
+            otroBomba: dataTx.otroBomba || null,
         });
 
         const cotizacionId = info.lastInsertRowid;
@@ -269,7 +270,8 @@ function updateCotizacion(id, dataTx) {
       color = @color,
       marcaBomba = @marcaBomba,
       modeloBomba = @modeloBomba,
-      serialBomba = @serialBomba
+      serialBomba = @serialBomba,
+      otroBomba = @otroBomba
     WHERE id = @id
   `);
 
@@ -299,6 +301,7 @@ function updateCotizacion(id, dataTx) {
             marcaBomba: dataTx.marcaBomba !== undefined ? dataTx.marcaBomba : existing.marcaBomba,
             modeloBomba: dataTx.modeloBomba !== undefined ? dataTx.modeloBomba : existing.modeloBomba,
             serialBomba: dataTx.serialBomba !== undefined ? dataTx.serialBomba : existing.serialBomba,
+            otroBomba: dataTx.otroBomba !== undefined ? dataTx.otroBomba : existing.otroBomba,
         });
 
         if (dataTx.items && Array.isArray(dataTx.items)) {
