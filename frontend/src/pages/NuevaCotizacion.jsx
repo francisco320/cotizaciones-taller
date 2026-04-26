@@ -73,7 +73,7 @@ export function NuevaCotizacion() {
   const updateItem = (index, key, value) => {
     setItems((prev) => {
       const next = [...prev]
-      next[index] = { ...next[index], [key]: key === 'descripcion' ? value : (key === 'cantidad' || key === 'precioBase' ? Number(value) || 0 : value) }
+      next[index] = { ...next[index], [key]: value }
       return next
     })
   }
@@ -100,7 +100,11 @@ export function NuevaCotizacion() {
       modeloBomba: tipoServicio === 'bomba_inyeccion' ? modeloBomba : undefined,
       serialBomba: tipoServicio === 'bomba_inyeccion' ? serialBomba : undefined,
       otroBomba: tipoServicio === 'bomba_inyeccion' ? otroBomba : undefined,
-      items: items.filter((i) => i.descripcion.trim()),
+      items: items.filter((i) => i.descripcion.trim()).map((i) => ({
+        ...i,
+        precioBase: Number(i.precioBase) || 0,
+        cantidad: Number(i.cantidad) || 0,
+      })),
       aplicaIVA,
       porcentajeIVA,
       elaboradoPor: elaboradoPor.trim() || 'Lariannys Villazana',
@@ -236,7 +240,7 @@ export function NuevaCotizacion() {
                     <td className="p-2">
                       <input
                         type="text"
-                        value={item.descripcion}
+                        value={item.descripcion ?? ''}
                         onChange={(e) => updateItem(i, 'descripcion', e.target.value)}
                         className="input w-full"
                         placeholder="Descripción"
@@ -247,7 +251,7 @@ export function NuevaCotizacion() {
                         type="number"
                         min="0"
                         step="0.01"
-                        value={item.precioBase || ''}
+                        value={item.precioBase ?? ''}
                         onChange={(e) => updateItem(i, 'precioBase', e.target.value)}
                         className="input w-full text-right tabular-nums"
                       />
@@ -358,7 +362,7 @@ function Input({ label, value, onChange, type = 'text', required, className = ''
       <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
       <input
         type={type}
-        value={value}
+        value={value ?? ''}
         onChange={(e) => onChange(e.target.value)}
         required={required}
         className="input"
