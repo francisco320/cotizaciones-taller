@@ -233,9 +233,51 @@ function drawServiceInfo(doc, cotizacion, startY) {
     const margin = layout.page.margin;
     const blockWidth = doc.page.width - margin * 2;
     const padding = 10;
-    const lineHeight = 14;
     const headerHeight = 16;
-    const blockHeight = 90;
+
+    const startCol = margin + padding;
+    const maxTextWidth = blockWidth - padding * 2;
+
+    let fields = [];
+    if (tipo === 'bomba_inyeccion') {
+        const marca = cotizacion.marcaBomba || v.marca || v.vehiculo || '—';
+        const modeloVal = cotizacion.modeloBomba || v.modelo || '—';
+        const serial = cotizacion.serialBomba || v.serial || v.placa || '—';
+        const otroVal = cotizacion.otroBomba || cotizacion.otro || v.otroBomba || v.otro || '—';
+
+        fields = [
+            { label: 'Marca:', value: marca },
+            { label: 'Modelo:', value: modeloVal },
+            { label: 'Serial:', value: serial },
+            { label: 'Otro:', value: otroVal }
+        ];
+    } else {
+        fields = [
+            { label: 'Vehículo:', value: v.vehiculo || '—' },
+            { label: 'Modelo:', value: v.modelo || '—' },
+            { label: 'Color:', value: v.color || '—' },
+            { label: 'Placa:', value: v.placa || '—' }
+        ];
+    }
+
+    // Calcular altura total requerida dinámicamente
+    let contentHeight = headerHeight;
+    const lineSpacing = 6; // Espaciado limpio entre líneas
+    const dataFontSize = 9; // Igualar tamaño con tabla de items
+    const fieldHeights = [];
+
+    // Pre-medir altura de cada campo para evitar overlaps
+    for (const field of fields) {
+        doc.font('Helvetica-Bold').fontSize(dataFontSize);
+        const text = `${field.label} ${field.value}`;
+        const h = doc.heightOfString(text, { width: maxTextWidth });
+        fieldHeights.push(h);
+        contentHeight += h + lineSpacing;
+    }
+
+    contentHeight -= lineSpacing; // Remover el espaciado extra del último elemento
+
+    const blockHeight = padding + contentHeight + padding;
 
     // Card-style background
     doc.roundedRect(margin, startY, blockWidth, blockHeight, 4)
@@ -247,32 +289,19 @@ function drawServiceInfo(doc, cotizacion, startY) {
     let y = startY + padding;
 
     doc.font('Helvetica-Bold').fontSize(layout.fonts.subtitle || 12).fillColor(layout.colors.header);
-    doc.text(tipo === 'bomba_inyeccion' ? 'DATOS DE LA BOMBA DE INYECCIÓN' : 'DATOS DEL VEHÍCULO', margin + padding, y);
+    doc.text(tipo === 'bomba_inyeccion' ? 'DATOS DE LA BOMBA DE INYECCIÓN' : 'DATOS DEL VEHÍCULO', startCol, y);
     y += headerHeight;
 
-    doc.font('Helvetica').fontSize(layout.fonts.body || 10).fillColor(layout.colors.text);
+    // Renderizar datos en formato de lista vertical
+    doc.fontSize(dataFontSize).fillColor(layout.colors.text);
 
-    const colW = (doc.page.width - margin * 2 - padding * 2) / 4;
-    const startCol = margin + padding;
-
-    if (tipo === 'bomba_inyeccion') {
-        // Soportar campos enviados desde el frontend como propiedades top-level
-        const marca = cotizacion.marcaBomba || v.marca || v.vehiculo || '—';
-        const modeloVal = cotizacion.modeloBomba || v.modelo || '—';
-        const serial = cotizacion.serialBomba || v.serial || v.placa || '—';
-        const otroVal = cotizacion.otroBomba || cotizacion.otro || v.otroBomba || v.otro || '—';
-
-        drawField(doc, 'Marca:', marca, startCol, y);
-        drawField(doc, 'Modelo:', modeloVal, startCol + colW, y);
-        drawField(doc, 'Serial:', serial, startCol + colW * 2, y);
-        // Nueva fila para campo adicional "Otro" específico de la bomba
-        const extraY = y + lineHeight;
-        drawField(doc, 'Otro:', otroVal, startCol, extraY, { maxWidth: blockWidth - padding * 2 });
-    } else {
-        drawField(doc, 'Vehículo:', v.vehiculo, startCol, y);
-        drawField(doc, 'Modelo:', v.modelo, startCol + colW, y);
-        drawField(doc, 'Color:', v.color, startCol + colW * 2, y);
-        drawField(doc, 'Placa:', v.placa, startCol + colW * 3, y);
+    for (let i = 0; i < fields.length; i++) {
+        const field = fields[i];
+        
+        doc.font('Helvetica-Bold').text(field.label, startCol, y, { continued: true, width: maxTextWidth });
+        doc.font('Helvetica').text(` ${field.value}`, { continued: false });
+        
+        y += fieldHeights[i] + lineSpacing;
     }
 
     return startY + blockHeight + 8;
