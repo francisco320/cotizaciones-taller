@@ -118,6 +118,33 @@ function initDB(db) {
     CREATE INDEX IF NOT EXISTS idx_clientes_nombre ON clientes (nombre);
     CREATE INDEX IF NOT EXISTS idx_clientes_rif ON clientes (rif);
   `);
+
+    // Tabla de productos
+    db.exec(`
+    CREATE TABLE IF NOT EXISTS productos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      codigo TEXT UNIQUE NOT NULL,
+      nombre TEXT NOT NULL,
+      categoria TEXT,
+      descripcion TEXT,
+      stock REAL NOT NULL DEFAULT 0 CHECK (stock >= 0),
+      stockMinimo REAL NOT NULL DEFAULT 0,
+      precioCompra REAL NOT NULL DEFAULT 0,
+      precioVenta REAL NOT NULL DEFAULT 0,
+      proveedor TEXT,
+      ubicacion TEXT,
+      activo INTEGER DEFAULT 1,
+      createdAt TEXT,
+      updatedAt TEXT
+    )
+  `);
+
+    // Índices de productos
+    db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_productos_codigo ON productos (codigo);
+    CREATE INDEX IF NOT EXISTS idx_productos_nombre ON productos (nombre);
+    CREATE INDEX IF NOT EXISTS idx_productos_categoria ON productos (categoria);
+  `);
 }
 
 const db = connectDB();
@@ -441,11 +468,13 @@ function exportData() {
     const cotizaciones = db.prepare('SELECT * FROM cotizaciones').all();
     const items = db.prepare('SELECT * FROM items').all();
     const clientes = db.prepare('SELECT * FROM clientes').all();
+    const productos = db.prepare('SELECT * FROM productos').all();
 
     return {
         cotizaciones,
         items,
-        clientes
+        clientes,
+        productos
     };
 }
 
@@ -477,6 +506,7 @@ function importData(data) {
         db.prepare('DELETE FROM items').run();
         db.prepare('DELETE FROM cotizaciones').run();
         db.prepare('DELETE FROM clientes').run();
+        db.prepare('DELETE FROM productos').run();
 
         // Insert Cotizaciones
         if (data.cotizaciones.length > 0) {
@@ -507,6 +537,16 @@ function importData(data) {
                 insertCliente.run(row);
             }
         }
+
+        // Insert Productos
+        if (data.productos && data.productos.length > 0) {
+            const columns = Object.keys(data.productos[0]).join(', ');
+            const placeholders = Object.keys(data.productos[0]).map(k => `@${k}`).join(', ');
+            const insertProducto = db.prepare(`INSERT INTO productos (${columns}) VALUES (${placeholders})`);
+            for (const row of data.productos) {
+                insertProducto.run(row);
+            }
+        }
         
         // Re-enable foreign keys
         db.pragma('foreign_keys = ON');
@@ -530,4 +570,5 @@ module.exports = {
     exportData,
     backupDatabaseFile,
     importData,
+    db // exportamos la instancia de la base de datos para usarla en los repositorios separados
 };

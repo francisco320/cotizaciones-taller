@@ -101,6 +101,7 @@ async function ensurePdfFolder(window) {
 
 // Inicializamos la base de datos de inmediato (se conecta en el proceso main)
 const db = require('./electron/database');
+const inventoryService = require('./electron/inventoryService');
 const { generarPDF } = require('./electron/pdfGenerator');
 
 async function createWindow() {
@@ -165,6 +166,31 @@ async function createWindow() {
 
     ipcMain.handle('clientes:delete', (_event, id) => {
         return db.deleteCliente(id);
+    });
+
+    // ── IPC Handlers - Inventario ───────────────
+    ipcMain.handle('inventory:list', (_event, searchTerm) => {
+        return inventoryService.getProducts(searchTerm);
+    });
+
+    ipcMain.handle('inventory:get', (_event, id) => {
+        return inventoryService.getProduct(id);
+    });
+
+    ipcMain.handle('inventory:create', (_event, data) => {
+        return inventoryService.createProduct(data);
+    });
+
+    ipcMain.handle('inventory:update', (_event, id, data) => {
+        return inventoryService.updateProduct(id, data);
+    });
+
+    ipcMain.handle('inventory:delete', (_event, id) => {
+        return inventoryService.deleteProduct(id);
+    });
+
+    ipcMain.handle('inventory:updateStock', (_event, id, stock) => {
+        return inventoryService.updateStock(id, stock);
     });
 
     // ── IPC Handlers - Backup ───────────────────

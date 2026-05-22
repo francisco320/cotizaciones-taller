@@ -18,6 +18,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     updateCliente: (id, data) => ipcRenderer.invoke('clientes:update', id, data),
     deleteCliente: (id) => ipcRenderer.invoke('clientes:delete', id),
 
+    // --- Metodos de Inventario ---
+    getInventory: (searchTerm) => ipcRenderer.invoke('inventory:list', searchTerm),
+    getProduct: (id) => ipcRenderer.invoke('inventory:get', id),
+    createProduct: (data) => ipcRenderer.invoke('inventory:create', data),
+    updateProduct: (id, data) => ipcRenderer.invoke('inventory:update', id, data),
+    deleteProduct: (id) => ipcRenderer.invoke('inventory:delete', id),
+    updateProductStock: (id, stock) => ipcRenderer.invoke('inventory:updateStock', id, stock),
+
     // --- PDFs y Ficheros ---
     generarPDF: (id, options) => ipcRenderer.invoke('cotizaciones:pdf', id, options),
     openExternal: (url) => ipcRenderer.invoke('open-external', url),
@@ -44,6 +52,13 @@ contextBridge.exposeInMainWorld('api', {
     createCliente: (data) => ipcRenderer.invoke('clientes:create', data),
     updateCliente: (id, data) => ipcRenderer.invoke('clientes:update', id, data),
     deleteCliente: (id) => ipcRenderer.invoke('clientes:delete', id),
+    
+    getInventory: (searchTerm) => ipcRenderer.invoke('inventory:list', searchTerm),
+    getProduct: (id) => ipcRenderer.invoke('inventory:get', id),
+    createProduct: (data) => ipcRenderer.invoke('inventory:create', data),
+    updateProduct: (id, data) => ipcRenderer.invoke('inventory:update', id, data),
+    deleteProduct: (id) => ipcRenderer.invoke('inventory:delete', id),
+    updateProductStock: (id, stock) => ipcRenderer.invoke('inventory:updateStock', id, stock),
     generarPDF: (id, options) => ipcRenderer.invoke('cotizaciones:pdf', id, options),
     openExternal: (url) => ipcRenderer.invoke('open-external', url),
     getPdfPath: (numero) => ipcRenderer.invoke('get-pdf-path', numero),

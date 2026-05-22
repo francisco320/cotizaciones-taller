@@ -4,6 +4,7 @@ import { ListaCotizaciones } from './pages/ListaCotizaciones'
 import { NuevaCotizacion } from './pages/NuevaCotizacion'
 import { VerCotizacion } from './pages/VerCotizacion'
 import { Clientes } from './pages/Clientes'
+import { Inventario } from './pages/Inventario'
 import { Respaldos } from './pages/Respaldos'
 
 function App() {
@@ -13,6 +14,7 @@ function App() {
         <Route path="/" element={<Layout />}>
           <Route index element={<ListaCotizaciones />} />
           <Route path="clientes" element={<Clientes />} />
+          <Route path="inventario" element={<Inventario />} />
           <Route path="nueva" element={<NuevaCotizacion />} />
           <Route path="cotizacion/:id" element={<VerCotizacion />} />
           <Route path="cotizacion/:id/editar" element={<NuevaCotizacion />} />
