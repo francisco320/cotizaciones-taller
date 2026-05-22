@@ -24,6 +24,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getPdfPath: (numero) => ipcRenderer.invoke('get-pdf-path', numero),
     getPdfFolder: () => ipcRenderer.invoke('get-pdf-folder'),
     selectPdfFolder: () => ipcRenderer.invoke('select-pdf-folder'),
+
+    // --- Respaldos ---
+    exportBackup: () => ipcRenderer.invoke('backup:export'),
+    importBackup: () => ipcRenderer.invoke('backup:import'),
 });
 
 // Compatibilidad: algunos componentes usan `window.api` en vez de `window.electronAPI`.
@@ -45,4 +49,6 @@ contextBridge.exposeInMainWorld('api', {
     getPdfPath: (numero) => ipcRenderer.invoke('get-pdf-path', numero),
     getPdfFolder: () => ipcRenderer.invoke('get-pdf-folder'),
     selectPdfFolder: () => ipcRenderer.invoke('select-pdf-folder'),
+    exportBackup: () => ipcRenderer.invoke('backup:export'),
+    importBackup: () => ipcRenderer.invoke('backup:import'),
 });

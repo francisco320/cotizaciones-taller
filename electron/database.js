@@ -4,6 +4,16 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 const { app } = require('electron');
+const fs = require('fs');
+
+/**
+ * Returns the path to the SQLite database file
+ */
+function getDbPath() {
+    return app.isPackaged
+        ? path.join(app.getPath('userData'), 'database.sqlite')
+        : path.join(__dirname, '..', 'database.sqlite');
+}
 
 /**
  * Conecta o crea la base de datos SQLite
@@ -11,9 +21,7 @@ const { app } = require('electron');
 const connectDB = () => {
     try {
         // Si la app está empaquetada, guardarlo en userData, si no, en la raíz
-        const dbPath = app.isPackaged
-            ? path.join(app.getPath('userData'), 'database.sqlite')
-            : path.join(__dirname, '..', 'database.sqlite');
+        const dbPath = getDbPath();
 
         const db = new Database(dbPath, { verbose: console.log });
 
@@ -427,6 +435,86 @@ function deleteCliente(id) {
     return info.changes > 0;
 }
 
+// ------- Backup & Restore Operations ------- //
+
+function exportData() {
+    const cotizaciones = db.prepare('SELECT * FROM cotizaciones').all();
+    const items = db.prepare('SELECT * FROM items').all();
+    const clientes = db.prepare('SELECT * FROM clientes').all();
+
+    return {
+        cotizaciones,
+        items,
+        clientes
+    };
+}
+
+function backupDatabaseFile() {
+    const currentDbPath = getDbPath();
+    const backupDbPath = currentDbPath + '.bak';
+    
+    try {
+        // Force checkpoint to ensure all WAL data is in the main file before copying
+        db.pragma('wal_checkpoint(RESTART)');
+        fs.copyFileSync(currentDbPath, backupDbPath);
+        return backupDbPath;
+    } catch (err) {
+        console.error('Error backing up database:', err);
+        throw new Error('No se pudo crear la copia de seguridad de la base de datos local.');
+    }
+}
+
+function importData(data) {
+    if (!data.cotizaciones || !data.items || !data.clientes) {
+        throw new Error('Estructura de respaldo inválida.');
+    }
+
+    const tx = db.transaction(() => {
+        // Disable foreign keys temporarily for the bulk import
+        db.pragma('foreign_keys = OFF');
+        
+        // Clear existing tables
+        db.prepare('DELETE FROM items').run();
+        db.prepare('DELETE FROM cotizaciones').run();
+        db.prepare('DELETE FROM clientes').run();
+
+        // Insert Cotizaciones
+        if (data.cotizaciones.length > 0) {
+            const columns = Object.keys(data.cotizaciones[0]).join(', ');
+            const placeholders = Object.keys(data.cotizaciones[0]).map(k => `@${k}`).join(', ');
+            const insertCotizacion = db.prepare(`INSERT INTO cotizaciones (${columns}) VALUES (${placeholders})`);
+            for (const row of data.cotizaciones) {
+                insertCotizacion.run(row);
+            }
+        }
+
+        // Insert Items
+        if (data.items.length > 0) {
+            const columns = Object.keys(data.items[0]).join(', ');
+            const placeholders = Object.keys(data.items[0]).map(k => `@${k}`).join(', ');
+            const insertItem = db.prepare(`INSERT INTO items (${columns}) VALUES (${placeholders})`);
+            for (const row of data.items) {
+                insertItem.run(row);
+            }
+        }
+
+        // Insert Clientes
+        if (data.clientes.length > 0) {
+            const columns = Object.keys(data.clientes[0]).join(', ');
+            const placeholders = Object.keys(data.clientes[0]).map(k => `@${k}`).join(', ');
+            const insertCliente = db.prepare(`INSERT INTO clientes (${columns}) VALUES (${placeholders})`);
+            for (const row of data.clientes) {
+                insertCliente.run(row);
+            }
+        }
+        
+        // Re-enable foreign keys
+        db.pragma('foreign_keys = ON');
+    });
+
+    tx();
+}
+
 module.exports = {
     createCotizacion,
     getCotizaciones,
@@ -439,4 +527,7 @@ module.exports = {
     getClienteById,
     updateCliente,
     deleteCliente,
+    exportData,
+    backupDatabaseFile,
+    importData,
 };

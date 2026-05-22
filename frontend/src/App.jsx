@@ -4,6 +4,7 @@ import { ListaCotizaciones } from './pages/ListaCotizaciones'
 import { NuevaCotizacion } from './pages/NuevaCotizacion'
 import { VerCotizacion } from './pages/VerCotizacion'
 import { Clientes } from './pages/Clientes'
+import { Respaldos } from './pages/Respaldos'
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
           <Route path="nueva" element={<NuevaCotizacion />} />
           <Route path="cotizacion/:id" element={<VerCotizacion />} />
           <Route path="cotizacion/:id/editar" element={<NuevaCotizacion />} />
+          <Route path="respaldos" element={<Respaldos />} />
         </Route>
       </Routes>
     </HashRouter>

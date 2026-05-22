@@ -167,6 +167,68 @@ async function createWindow() {
         return db.deleteCliente(id);
     });
 
+    // ── IPC Handlers - Backup ───────────────────
+    ipcMain.handle('backup:export', async () => {
+        try {
+            const date = new Date().toISOString().split('T')[0];
+            const defaultName = `cotizaciones-backup-${date}.json`;
+            
+            const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+                title: 'Exportar Respaldo',
+                defaultPath: defaultName,
+                filters: [{ name: 'JSON Backup', extensions: ['json'] }]
+            });
+
+            if (canceled || !filePath) return { success: false, canceled: true };
+
+            const data = db.exportData();
+            
+            const backupData = {
+                version: '1.0',
+                fecha: new Date().toISOString(),
+                ...data
+            };
+
+            fs.writeFileSync(filePath, JSON.stringify(backupData, null, 2), 'utf8');
+            return { success: true, path: filePath };
+        } catch (error) {
+            console.error('Error al exportar respaldo:', error);
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle('backup:import', async () => {
+        try {
+            const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+                title: 'Importar Respaldo',
+                properties: ['openFile'],
+                filters: [{ name: 'JSON Backup', extensions: ['json'] }]
+            });
+
+            if (canceled || !filePaths || filePaths.length === 0) return { success: false, canceled: true };
+
+            const filePath = filePaths[0];
+            const fileContent = fs.readFileSync(filePath, 'utf8');
+            const data = JSON.parse(fileContent);
+
+            // Validaciones básicas
+            if (!data.version || !data.cotizaciones || !data.items || !data.clientes) {
+                return { success: false, error: 'El archivo no tiene el formato de respaldo válido.' };
+            }
+
+            // Hacer un respaldo automático antes de importar
+            db.backupDatabaseFile();
+
+            // Importar los datos
+            db.importData(data);
+
+            return { success: true };
+        } catch (error) {
+            console.error('Error al importar respaldo:', error);
+            return { success: false, error: error.message };
+        }
+    });
+
     // ── IPC Handlers - Archivos y URLs ────────
     ipcMain.handle('open-external', async (_event, url) => {
         if (url.startsWith('https://') || url.startsWith('file://')) {

@@ -6,7 +6,8 @@ export function Layout() {
 
   const navItems = [
     { name: 'Cotizaciones', path: '/' },
-    { name: 'Clientes', path: '/clientes' }
+    { name: 'Clientes', path: '/clientes' },
+    { name: 'Respaldos', path: '/respaldos' }
   ];
 
   return (
@@ -62,6 +63,7 @@ export function Layout() {
         <header className="h-16 bg-white border-b border-slate-200 shrink-0 flex items-center px-6 shadow-sm z-10 justify-between">
           <h1 className="text-xl font-semibold text-slate-800">
             {location.pathname === '/clientes' ? 'Gestión de Clientes' : 
+             location.pathname === '/respaldos' ? 'Respaldos y Seguridad' : 
              location.pathname === '/nueva' ? 'Nueva Cotización' : 
              location.pathname.startsWith('/cotizacion/') ? 'Detalle de Cotización' : 
              'Listado de Cotizaciones'}
