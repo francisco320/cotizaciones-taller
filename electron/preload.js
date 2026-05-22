@@ -11,6 +11,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     updateCotizacion: (id, data) => ipcRenderer.invoke('cotizaciones:update', id, data),
     deleteCotizacion: (id) => ipcRenderer.invoke('cotizaciones:delete', id),
 
+    // --- Metodos de Clientes ---
+    getClientes: (searchTerm) => ipcRenderer.invoke('clientes:list', searchTerm),
+    getCliente: (id) => ipcRenderer.invoke('clientes:get', id),
+    createCliente: (data) => ipcRenderer.invoke('clientes:create', data),
+    updateCliente: (id, data) => ipcRenderer.invoke('clientes:update', id, data),
+    deleteCliente: (id) => ipcRenderer.invoke('clientes:delete', id),
+
     // --- PDFs y Ficheros ---
     generarPDF: (id, options) => ipcRenderer.invoke('cotizaciones:pdf', id, options),
     openExternal: (url) => ipcRenderer.invoke('open-external', url),
@@ -28,6 +35,11 @@ contextBridge.exposeInMainWorld('api', {
     createCotizacion: (data) => ipcRenderer.invoke('cotizaciones:create', data),
     updateCotizacion: (id, data) => ipcRenderer.invoke('cotizaciones:update', id, data),
     deleteCotizacion: (id) => ipcRenderer.invoke('cotizaciones:delete', id),
+    getClientes: (searchTerm) => ipcRenderer.invoke('clientes:list', searchTerm),
+    getCliente: (id) => ipcRenderer.invoke('clientes:get', id),
+    createCliente: (data) => ipcRenderer.invoke('clientes:create', data),
+    updateCliente: (id, data) => ipcRenderer.invoke('clientes:update', id, data),
+    deleteCliente: (id) => ipcRenderer.invoke('clientes:delete', id),
     generarPDF: (id, options) => ipcRenderer.invoke('cotizaciones:pdf', id, options),
     openExternal: (url) => ipcRenderer.invoke('open-external', url),
     getPdfPath: (numero) => ipcRenderer.invoke('get-pdf-path', numero),

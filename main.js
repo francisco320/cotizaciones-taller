@@ -146,6 +146,27 @@ async function createWindow() {
         return db.deleteCotizacion(id);
     });
 
+    // ── IPC Handlers - Clientes ─────────────────
+    ipcMain.handle('clientes:list', (_event, searchTerm) => {
+        return db.getClientes(searchTerm);
+    });
+
+    ipcMain.handle('clientes:get', (_event, id) => {
+        return db.getClienteById(id);
+    });
+
+    ipcMain.handle('clientes:create', (_event, data) => {
+        return db.createCliente(data);
+    });
+
+    ipcMain.handle('clientes:update', (_event, id, data) => {
+        return db.updateCliente(id, data);
+    });
+
+    ipcMain.handle('clientes:delete', (_event, id) => {
+        return db.deleteCliente(id);
+    });
+
     // ── IPC Handlers - Archivos y URLs ────────
     ipcMain.handle('open-external', async (_event, url) => {
         if (url.startsWith('https://') || url.startsWith('file://')) {

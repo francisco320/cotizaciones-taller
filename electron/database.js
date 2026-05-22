@@ -88,6 +88,28 @@ function initDB(db) {
       FOREIGN KEY (cotizacionId) REFERENCES cotizaciones (id) ON DELETE CASCADE
     )
   `);
+
+    // Tabla de clientes
+    db.exec(`
+    CREATE TABLE IF NOT EXISTS clientes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nombre TEXT NOT NULL,
+      telefono TEXT,
+      email TEXT,
+      rif TEXT,
+      direccion TEXT,
+      ciudad TEXT,
+      notas TEXT,
+      createdAt TEXT,
+      updatedAt TEXT
+    )
+  `);
+
+    // Índices de clientes
+    db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_clientes_nombre ON clientes (nombre);
+    CREATE INDEX IF NOT EXISTS idx_clientes_rif ON clientes (rif);
+  `);
 }
 
 const db = connectDB();
@@ -330,6 +352,81 @@ function deleteCotizacion(id) {
     return info.changes > 0;
 }
 
+// ------- Clientes CRUD Operations ------- //
+
+function createCliente(data) {
+    const now = new Date().toISOString();
+    const insert = db.prepare(`
+        INSERT INTO clientes (nombre, telefono, email, rif, direccion, ciudad, notas, createdAt, updatedAt)
+        VALUES (@nombre, @telefono, @email, @rif, @direccion, @ciudad, @notas, @createdAt, @updatedAt)
+    `);
+    const info = insert.run({
+        nombre: data.nombre || '',
+        telefono: data.telefono || null,
+        email: data.email || null,
+        rif: data.rif || null,
+        direccion: data.direccion || null,
+        ciudad: data.ciudad || null,
+        notas: data.notas || null,
+        createdAt: now,
+        updatedAt: now
+    });
+    return getClienteById(info.lastInsertRowid);
+}
+
+function getClientes(searchTerm = '') {
+    // Dynamic join to get the count and last date based on the JSON client name
+    const query = `
+        SELECT 
+            c.*, 
+            (SELECT COUNT(*) FROM cotizaciones q WHERE json_extract(q.cliente, '$.nombre') = c.nombre) as totalCotizaciones,
+            (SELECT MAX(createdAt) FROM cotizaciones q WHERE json_extract(q.cliente, '$.nombre') = c.nombre) as ultimaCotizacion
+        FROM clientes c
+        WHERE c.nombre LIKE @search OR c.rif LIKE @search
+        ORDER BY c.nombre ASC
+    `;
+    return db.prepare(query).all({ search: `%${searchTerm}%` });
+}
+
+function getClienteById(id) {
+    return db.prepare('SELECT * FROM clientes WHERE id = ?').get(id);
+}
+
+function updateCliente(id, data) {
+    const existing = db.prepare('SELECT * FROM clientes WHERE id = ?').get(id);
+    if (!existing) return null;
+    const now = new Date().toISOString();
+    const updateQuery = db.prepare(`
+        UPDATE clientes SET
+            nombre = @nombre,
+            telefono = @telefono,
+            email = @email,
+            rif = @rif,
+            direccion = @direccion,
+            ciudad = @ciudad,
+            notas = @notas,
+            updatedAt = @updatedAt
+        WHERE id = @id
+    `);
+    updateQuery.run({
+        id,
+        nombre: data.nombre !== undefined ? data.nombre : existing.nombre,
+        telefono: data.telefono !== undefined ? data.telefono : existing.telefono,
+        email: data.email !== undefined ? data.email : existing.email,
+        rif: data.rif !== undefined ? data.rif : existing.rif,
+        direccion: data.direccion !== undefined ? data.direccion : existing.direccion,
+        ciudad: data.ciudad !== undefined ? data.ciudad : existing.ciudad,
+        notas: data.notas !== undefined ? data.notas : existing.notas,
+        updatedAt: now
+    });
+    return getClienteById(id);
+}
+
+function deleteCliente(id) {
+    const info = db.prepare('DELETE FROM clientes WHERE id = ?').run(id);
+    return info.changes > 0;
+}
+
 module.exports = {
     createCotizacion,
     getCotizaciones,
@@ -337,4 +434,9 @@ module.exports = {
     getCotizacionByNumero,
     updateCotizacion,
     deleteCotizacion,
+    createCliente,
+    getClientes,
+    getClienteById,
+    updateCliente,
+    deleteCliente,
 };

@@ -39,3 +39,11 @@ export const electronAPI = {
   getPdfFolder: () => window.electronAPI.getPdfFolder(),
   selectPdfFolder: () => window.electronAPI.selectPdfFolder(),
 }
+
+export const clientesAPI = {
+  listar: (searchTerm = '') => window.electronAPI.getClientes(searchTerm),
+  obtener: (id) => window.electronAPI.getCliente(id),
+  crear: (body) => window.electronAPI.createCliente(body),
+  actualizar: (id, body) => window.electronAPI.updateCliente(id, body),
+  eliminar: (id) => window.electronAPI.deleteCliente(id),
+}

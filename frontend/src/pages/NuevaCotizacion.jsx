@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { electronAPI } from '../api/client'
 import { resumenCotizacion } from '../lib/calculations'
 import COMPANY from '../config/company'
+import { ClienteSelect } from '../components/ClienteSelect'
 
 const emptyItem = () => ({ descripcion: '', precioBase: 0, cantidad: 1 })
 const defaultCliente = { nombre: '', direccion: '', telefono: '', rif: '' }
@@ -68,6 +69,17 @@ export function NuevaCotizacion() {
   const resumen = resumenCotizacion(items, aplicaIVA, porcentajeIVA)
 
   const updateCliente = (key, value) => setCliente((c) => ({ ...c, [key]: value }))
+  
+  const handleClientSelect = (selectedCliente) => {
+    setCliente(prev => ({
+      ...prev,
+      nombre: selectedCliente.nombre || prev.nombre,
+      rif: selectedCliente.rif || prev.rif,
+      direccion: selectedCliente.direccion || prev.direccion,
+      telefono: selectedCliente.telefono || prev.telefono
+    }));
+  }
+
   const updateVehiculo = (key, value) => setVehiculo((v) => ({ ...v, [key]: value }))
 
   const updateItem = (index, key, value) => {
@@ -162,7 +174,11 @@ export function NuevaCotizacion() {
         <section className="bg-white rounded-lg border border-slate-200 shadow-sm p-6">
           <h2 className="text-lg font-semibold text-slate-900 mb-4">Cliente</h2>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Input label="Nombre" value={cliente.nombre} onChange={(v) => updateCliente('nombre', v)} required />
+            <ClienteSelect 
+              value={cliente.nombre} 
+              onChange={(v) => updateCliente('nombre', v)} 
+              onClientSelect={handleClientSelect}
+            />
             <Input label="RIF" value={cliente.rif} onChange={(v) => updateCliente('rif', v)} />
             <Input label="Dirección" value={cliente.direccion} onChange={(v) => updateCliente('direccion', v)} className="sm:col-span-2" />
             <Input label="Teléfono" value={cliente.telefono} onChange={(v) => updateCliente('telefono', v)} />
