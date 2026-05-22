@@ -86,7 +86,15 @@ export function ClienteModal({ isOpen, onClose, onSave, clienteToEdit = null }) 
           </button>
         </div>
         
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <div 
+          className="p-6 space-y-6"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              handleSubmit(e);
+            }
+          }}
+        >
           {error && (
             <div className="p-3 text-sm text-red-700 bg-red-50 rounded-lg border border-red-100">
               {error}
@@ -183,14 +191,18 @@ export function ClienteModal({ isOpen, onClose, onSave, clienteToEdit = null }) 
               Cancelar
             </button>
             <button 
-              type="submit" 
+              type="button" 
+              onClick={(e) => {
+                e.preventDefault();
+                handleSubmit(e);
+              }}
               disabled={saving}
               className="px-4 py-2 text-sm font-medium text-white bg-teal-600 rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50"
             >
               {saving ? 'Guardando...' : 'Guardar Cliente'}
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
