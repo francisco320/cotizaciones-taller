@@ -98,7 +98,7 @@ function getNextNumero() {
     const row = db.prepare('SELECT MAX(numero) as maxNum FROM cotizaciones').get();
 
     // El número debe comenzar en 300, de modo que se muestre como "0000300"
-    const MIN_NUMERO = 300;
+    const MIN_NUMERO = 349;
     const next = (row.maxNum || MIN_NUMERO - 1) + 1;
     return Math.max(next, MIN_NUMERO);
 }
