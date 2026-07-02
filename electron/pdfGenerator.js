@@ -297,10 +297,10 @@ function drawServiceInfo(doc, cotizacion, startY) {
 
     for (let i = 0; i < fields.length; i++) {
         const field = fields[i];
-        
+
         doc.font('Helvetica-Bold').text(field.label, startCol, y, { continued: true, width: maxTextWidth });
         doc.font('Helvetica').text(` ${field.value}`, { continued: false });
-        
+
         y += fieldHeights[i] + lineSpacing;
     }
 
