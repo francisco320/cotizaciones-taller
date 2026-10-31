@@ -1,4 +1,4 @@
-# Cotizaciones JS (Electron + SQLite)
+# Cotizaciones JS (Electron + SQLite) + proximamente mini web movil
 
 Aplicación de escritorio offline para gestionar cotizaciones automotrices con generación de PDFs.
 
