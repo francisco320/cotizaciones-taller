@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Aplicación de escritorio offline para gestión de cotizaciones automotrices",
   "main": "main.js",
-   "author": "Francisco Jose Flores",
+  "author": "Francisco Jose Flores",
   "license": "MIT",
   "scripts": {
     "postinstall": "electron-rebuild -f -w better-sqlite3 install-app-deps",
@@ -88,14 +88,13 @@
         "es_ES"
       ]
     }
-  }
-}
-{
+  },
   "pnpm": {
     "onlyBuiltDependencies": [
       "better-sqlite3",
       "electron",
-      "esbuild"
+      "esbuild",
+      "lzma-native"
     ]
   }
 }
