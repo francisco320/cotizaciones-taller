@@ -16,6 +16,7 @@ export function NuevaCotizacion() {
 
   const [fechaVencimiento, setFechaVencimiento] = useState('')
   const [cliente, setCliente] = useState(defaultCliente)
+  const [clienteId, setClienteId] = useState(null)
   const [tipoServicio, setTipoServicio] = useState('vehiculo')
 
   // Vehiculo fields
@@ -44,6 +45,7 @@ export function NuevaCotizacion() {
         .then(data => {
           setFechaVencimiento(data.fechaVencimiento ? data.fechaVencimiento.split('T')[0] : '')
           setCliente(data.cliente || defaultCliente)
+          setClienteId(data.clienteId || null)
 
           setTipoServicio(data.tipoServicio || 'vehiculo')
           setVehiculoTexto(data.vehiculoTexto || '')
@@ -71,6 +73,12 @@ export function NuevaCotizacion() {
   const updateCliente = (key, value) => setCliente((c) => ({ ...c, [key]: value }))
   
   const handleClientSelect = (selectedCliente) => {
+    if (!selectedCliente) {
+      setClienteId(null)
+      return
+    }
+
+    setClienteId(selectedCliente.id)
     setCliente(prev => ({
       ...prev,
       nombre: selectedCliente.nombre || prev.nombre,
@@ -103,6 +111,7 @@ export function NuevaCotizacion() {
       empresa: COMPANY,
       fechaVencimiento: fechaVencimiento || undefined,
       cliente,
+      clienteId,
       tipoServicio,
       vehiculo: tipoServicio === 'vehiculo' ? vehiculoTexto : undefined,
       modelo: tipoServicio === 'vehiculo' ? modelo : undefined,

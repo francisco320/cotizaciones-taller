@@ -72,6 +72,7 @@ export function ClienteSelect({ value, onChange, onClientSelect }) {
           onChange={(e) => {
             setSearch(e.target.value);
             onChange(e.target.value); // Keep allowing manual typing
+            if (onClientSelect) onClientSelect(null)
             if (!isOpen) setIsOpen(true);
           }}
           onFocus={() => setIsOpen(true)}

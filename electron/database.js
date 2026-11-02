@@ -5,6 +5,9 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const { app } = require('electron');
 const fs = require('fs');
+const { randomUUID } = require('crypto');
+const { migrateSyncSchema } = require('./syncMigrations');
+const { enqueueChange } = require('./syncQueue');
 
 /**
  * Returns the path to the SQLite database file
@@ -13,6 +16,38 @@ function getDbPath() {
     return app.isPackaged
         ? path.join(app.getPath('userData'), 'database.sqlite')
         : path.join(__dirname, '..', 'database.sqlite');
+}
+
+function backupBeforeSyncMigration(db, dbPath) {
+    const hasExistingTables = db.prepare(`
+        SELECT 1
+        FROM sqlite_master
+        WHERE type = 'table'
+          AND name IN ('clientes', 'cotizaciones', 'items', 'productos')
+        LIMIT 1
+    `).get();
+    if (!hasExistingTables) return;
+
+    const migrationTable = db.prepare(`
+        SELECT 1
+        FROM sqlite_master
+        WHERE type = 'table' AND name = 'sync_schema_migrations'
+    `).get();
+    if (migrationTable && db.prepare(
+        'SELECT 1 FROM sync_schema_migrations WHERE version = 1',
+    ).get()) {
+        return;
+    }
+
+    const checkpoint = db.pragma('wal_checkpoint(FULL)')[0];
+    if (checkpoint && checkpoint.busy !== 0) {
+        throw new Error('No se pudo asegurar la base SQLite antes de la migración.')
+    }
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+    const backupPath = `${dbPath}.pre-sync-${timestamp}.bak`
+    fs.copyFileSync(dbPath, backupPath)
+    console.info(`Respaldo previo a sincronización creado: ${backupPath}`)
 }
 
 /**
@@ -28,6 +63,7 @@ const connectDB = () => {
         db.pragma('journal_mode = WAL');
         db.pragma('foreign_keys = ON');
 
+        backupBeforeSyncMigration(db, dbPath);
         initDB(db);
 
         console.log('SQLITE Conectado y listo 📦');
@@ -61,28 +97,23 @@ function initDB(db) {
     )
   `);
 
-    // Schema evolution para nuevas columnas
-    try {
-        const tableInfo = db.pragma('table_info(cotizaciones)');
-        const hasTipoServicio = tableInfo.some(column => column.name === 'tipoServicio');
-        if (!hasTipoServicio) {
-            db.exec(`
-                ALTER TABLE cotizaciones ADD COLUMN tipoServicio TEXT NOT NULL DEFAULT 'vehiculo';
-                ALTER TABLE cotizaciones ADD COLUMN modelo TEXT;
-                ALTER TABLE cotizaciones ADD COLUMN placa TEXT;
-                ALTER TABLE cotizaciones ADD COLUMN color TEXT;
-                ALTER TABLE cotizaciones ADD COLUMN marcaBomba TEXT;
-                ALTER TABLE cotizaciones ADD COLUMN modeloBomba TEXT;
-                ALTER TABLE cotizaciones ADD COLUMN serialBomba TEXT;
-            `);
+    const quoteColumns = new Set(
+        db.pragma('table_info(cotizaciones)').map(column => column.name),
+    )
+    const legacyColumns = [
+        ['tipoServicio', "TEXT NOT NULL DEFAULT 'vehiculo'"],
+        ['modelo', 'TEXT'],
+        ['placa', 'TEXT'],
+        ['color', 'TEXT'],
+        ['marcaBomba', 'TEXT'],
+        ['modeloBomba', 'TEXT'],
+        ['serialBomba', 'TEXT'],
+        ['otroBomba', 'TEXT'],
+    ]
+    for (const [columnName, definition] of legacyColumns) {
+        if (!quoteColumns.has(columnName)) {
+            db.exec(`ALTER TABLE cotizaciones ADD COLUMN ${columnName} ${definition}`)
         }
-
-        const hasOtroBomba = tableInfo.some(column => column.name === 'otroBomba');
-        if (!hasOtroBomba) {
-            db.exec(`ALTER TABLE cotizaciones ADD COLUMN otroBomba TEXT;`);
-        }
-    } catch (err) {
-        console.warn('Error verifying new columns:', err);
     }
 
     // Tabla de items
@@ -145,6 +176,8 @@ function initDB(db) {
     CREATE INDEX IF NOT EXISTS idx_productos_nombre ON productos (nombre);
     CREATE INDEX IF NOT EXISTS idx_productos_categoria ON productos (categoria);
   `);
+
+    migrateSyncSchema(db);
 }
 
 const db = connectDB();
@@ -154,7 +187,6 @@ const db = connectDB();
 function getNextNumero() {
     const row = db.prepare('SELECT MAX(numero) as maxNum FROM cotizaciones').get();
 
-    // El número debe comenzar en 300, de modo que se muestre como "0000300"
     const MIN_NUMERO = 352;
     const next = (row.maxNum || MIN_NUMERO - 1) + 1;
     return Math.max(next, MIN_NUMERO);
@@ -168,23 +200,30 @@ function createCotizacion(data) {
     INSERT INTO cotizaciones (
       numero, fechaEmision, fechaVencimiento, empresa, cliente, vehiculo,
       aplicaIVA, porcentajeIVA, elaboradoPor, observaciones, createdAt, updatedAt,
-      tipoServicio, modelo, placa, color, marcaBomba, modeloBomba, serialBomba, otroBomba
+      tipoServicio, modelo, placa, color, marcaBomba, modeloBomba, serialBomba, otroBomba,
+      cloudId, clienteId, folioProvisional
     ) VALUES (
       @numero, @fechaEmision, @fechaVencimiento, @empresa, @cliente, @vehiculo,
       @aplicaIVA, @porcentajeIVA, @elaboradoPor, @observaciones, @createdAt, @updatedAt,
-      @tipoServicio, @modelo, @placa, @color, @marcaBomba, @modeloBomba, @serialBomba, @otroBomba
+      @tipoServicio, @modelo, @placa, @color, @marcaBomba, @modeloBomba, @serialBomba, @otroBomba,
+      @cloudId, @clienteId, 1
     )
   `);
 
 
     const insertItem = db.prepare(`
-    INSERT INTO items (cotizacionId, descripcion, precioBase, cantidad)
-    VALUES (@cotizacionId, @descripcion, @precioBase, @cantidad)
+    INSERT INTO items (
+      cotizacionId, descripcion, precioBase, cantidad, cloudId, productoId, createdAt, updatedAt
+    ) VALUES (
+      @cotizacionId, @descripcion, @precioBase, @cantidad, @cloudId, @productoId, @createdAt, @updatedAt
+    )
   `);
 
     const tx = db.transaction((dataTx) => {
         const info = insertCotizacion.run({
             numero,
+            cloudId: randomUUID(),
+            clienteId: dataTx.clienteId || null,
             fechaEmision: dataTx.fechaEmision || now,
             fechaVencimiento: dataTx.fechaVencimiento || null,
             empresa: JSON.stringify(dataTx.empresa || {}),
@@ -207,15 +246,21 @@ function createCotizacion(data) {
         });
 
         const cotizacionId = info.lastInsertRowid;
+        enqueueChange(db, 'cotizaciones', cotizacionId, 'INSERT')
 
         if (dataTx.items && Array.isArray(dataTx.items)) {
             for (const item of dataTx.items) {
-                insertItem.run({
+                const itemInfo = insertItem.run({
                     cotizacionId,
                     descripcion: item.descripcion,
                     precioBase: item.precioBase,
                     cantidad: item.cantidad,
+                    cloudId: randomUUID(),
+                    productoId: item.productoId || null,
+                    createdAt: now,
+                    updatedAt: now,
                 });
+                enqueueChange(db, 'items', itemInfo.lastInsertRowid, 'INSERT')
             }
         }
 
@@ -259,10 +304,16 @@ function parseCotizacionRow(row) {
 }
 
 function getCotizaciones(limit = 50, skip = 0) {
-    const itemsRows = db.prepare('SELECT * FROM cotizaciones ORDER BY id DESC LIMIT ? OFFSET ?').all(limit, skip);
-    const totalRow = db.prepare('SELECT COUNT(*) as count FROM cotizaciones').get();
+    const itemsRows = db.prepare(
+        'SELECT * FROM cotizaciones WHERE deletedAt IS NULL ORDER BY id DESC LIMIT ? OFFSET ?',
+    ).all(limit, skip);
+    const totalRow = db.prepare(
+        'SELECT COUNT(*) as count FROM cotizaciones WHERE deletedAt IS NULL',
+    ).get();
 
-    const getItemsByCotizacionId = db.prepare('SELECT * FROM items WHERE cotizacionId = ?');
+    const getItemsByCotizacionId = db.prepare(
+        'SELECT * FROM items WHERE cotizacionId = ? AND deletedAt IS NULL',
+    );
     const { resumenCotizacion } = require('./calculations');
 
     const parsedItems = itemsRows.map(row => {
@@ -278,9 +329,13 @@ function getCotizaciones(limit = 50, skip = 0) {
 }
 
 function getCotizacionById(id) {
-    const row = db.prepare('SELECT * FROM cotizaciones WHERE id = ?').get(id);
+    const row = db.prepare(
+        'SELECT * FROM cotizaciones WHERE id = ? AND deletedAt IS NULL',
+    ).get(id);
     if (!row) return null;
-    const items = db.prepare('SELECT * FROM items WHERE cotizacionId = ?').all(row.id);
+    const items = db.prepare(
+        'SELECT * FROM items WHERE cotizacionId = ? AND deletedAt IS NULL',
+    ).all(row.id);
 
     const doc = parseCotizacionRow(row);
     doc.items = items || [];
@@ -292,10 +347,14 @@ function getCotizacionById(id) {
 }
 
 function getCotizacionByNumero(numero) {
-    const row = db.prepare('SELECT * FROM cotizaciones WHERE numero = ?').get(numero);
+    const row = db.prepare(
+        'SELECT * FROM cotizaciones WHERE numero = ? AND deletedAt IS NULL',
+    ).get(numero);
     if (!row) return null;
 
-    const items = db.prepare('SELECT * FROM items WHERE cotizacionId = ?').all(row.id);
+    const items = db.prepare(
+        'SELECT * FROM items WHERE cotizacionId = ? AND deletedAt IS NULL',
+    ).all(row.id);
 
     const doc = parseCotizacionRow(row);
     doc.items = items || [];
@@ -308,7 +367,9 @@ function getCotizacionByNumero(numero) {
 
 
 function updateCotizacion(id, dataTx) {
-    const existing = db.prepare('SELECT * FROM cotizaciones WHERE id = ?').get(id);
+    const existing = db.prepare(
+        'SELECT * FROM cotizaciones WHERE id = ? AND deletedAt IS NULL',
+    ).get(id);
     if (!existing) return null;
 
     const now = new Date().toISOString();
@@ -325,6 +386,8 @@ function updateCotizacion(id, dataTx) {
       elaboradoPor = @elaboradoPor,
       observaciones = @observaciones,
       updatedAt = @updatedAt,
+      clienteId = @clienteId,
+      version = version + 1,
       tipoServicio = @tipoServicio,
       modelo = @modelo,
       placa = @placa,
@@ -336,10 +399,16 @@ function updateCotizacion(id, dataTx) {
     WHERE id = @id
   `);
 
-    const deleteItems = db.prepare('DELETE FROM items WHERE cotizacionId = ?');
+    const softDeleteItems = db.prepare(`
+      UPDATE items SET deletedAt = @deletedAt, updatedAt = @updatedAt, version = version + 1
+      WHERE cotizacionId = @cotizacionId AND deletedAt IS NULL
+    `);
     const insertItem = db.prepare(`
-    INSERT INTO items (cotizacionId, descripcion, precioBase, cantidad)
-    VALUES (@cotizacionId, @descripcion, @precioBase, @cantidad)
+    INSERT INTO items (
+      cotizacionId, descripcion, precioBase, cantidad, cloudId, productoId, createdAt, updatedAt
+    ) VALUES (
+      @cotizacionId, @descripcion, @precioBase, @cantidad, @cloudId, @productoId, @createdAt, @updatedAt
+    )
   `);
 
     const tx = db.transaction((cotizacionId) => {
@@ -355,6 +424,7 @@ function updateCotizacion(id, dataTx) {
             elaboradoPor: dataTx.elaboradoPor !== undefined ? dataTx.elaboradoPor : existing.elaboradoPor,
             observaciones: dataTx.observaciones !== undefined ? dataTx.observaciones : existing.observaciones,
             updatedAt: now,
+            clienteId: dataTx.clienteId !== undefined ? dataTx.clienteId : existing.clienteId,
             tipoServicio: dataTx.tipoServicio !== undefined ? dataTx.tipoServicio : existing.tipoServicio,
             modelo: dataTx.modelo !== undefined ? dataTx.modelo : existing.modelo,
             placa: dataTx.placa !== undefined ? dataTx.placa : existing.placa,
@@ -364,16 +434,28 @@ function updateCotizacion(id, dataTx) {
             serialBomba: dataTx.serialBomba !== undefined ? dataTx.serialBomba : existing.serialBomba,
             otroBomba: dataTx.otroBomba !== undefined ? dataTx.otroBomba : existing.otroBomba,
         });
+        enqueueChange(db, 'cotizaciones', cotizacionId, 'UPDATE')
 
         if (dataTx.items && Array.isArray(dataTx.items)) {
-            deleteItems.run(cotizacionId);
+            const existingItems = db.prepare(
+                'SELECT id FROM items WHERE cotizacionId = ? AND deletedAt IS NULL',
+            ).all(cotizacionId)
+            softDeleteItems.run({ cotizacionId, deletedAt: now, updatedAt: now })
+            for (const item of existingItems) {
+                enqueueChange(db, 'items', item.id, 'DELETE')
+            }
             for (const item of dataTx.items) {
-                insertItem.run({
+                const itemInfo = insertItem.run({
                     cotizacionId,
                     descripcion: item.descripcion,
                     precioBase: item.precioBase,
                     cantidad: item.cantidad,
+                    cloudId: randomUUID(),
+                    productoId: item.productoId || null,
+                    createdAt: now,
+                    updatedAt: now,
                 });
+                enqueueChange(db, 'items', itemInfo.lastInsertRowid, 'INSERT')
             }
         }
     });
@@ -383,8 +465,30 @@ function updateCotizacion(id, dataTx) {
 }
 
 function deleteCotizacion(id) {
-    const info = db.prepare('DELETE FROM cotizaciones WHERE id = ?').run(id);
-    return info.changes > 0;
+    const now = new Date().toISOString()
+    const deleteQuote = db.transaction(() => {
+        const existing = db.prepare(
+            'SELECT id FROM cotizaciones WHERE id = ? AND deletedAt IS NULL',
+        ).get(id)
+        if (!existing) return false
+
+        const items = db.prepare(
+            'SELECT id FROM items WHERE cotizacionId = ? AND deletedAt IS NULL',
+        ).all(id)
+        db.prepare(`
+            UPDATE items SET deletedAt = ?, updatedAt = ?, version = version + 1
+            WHERE cotizacionId = ? AND deletedAt IS NULL
+        `).run(now, now, id)
+        for (const item of items) enqueueChange(db, 'items', item.id, 'DELETE')
+
+        db.prepare(`
+            UPDATE cotizaciones SET deletedAt = ?, updatedAt = ?, version = version + 1
+            WHERE id = ?
+        `).run(now, now, id)
+        enqueueChange(db, 'cotizaciones', id, 'DELETE')
+        return true
+    })
+    return deleteQuote()
 }
 
 // ------- Clientes CRUD Operations ------- //
@@ -392,10 +496,11 @@ function deleteCotizacion(id) {
 function createCliente(data) {
     const now = new Date().toISOString();
     const insert = db.prepare(`
-        INSERT INTO clientes (nombre, telefono, email, rif, direccion, ciudad, notas, createdAt, updatedAt)
-        VALUES (@nombre, @telefono, @email, @rif, @direccion, @ciudad, @notas, @createdAt, @updatedAt)
+        INSERT INTO clientes (nombre, telefono, email, rif, direccion, ciudad, notas, createdAt, updatedAt, cloudId)
+        VALUES (@nombre, @telefono, @email, @rif, @direccion, @ciudad, @notas, @createdAt, @updatedAt, @cloudId)
     `);
-    const info = insert.run({
+    const create = db.transaction(() => {
+        const info = insert.run({
         nombre: data.nombre || '',
         telefono: data.telefono || null,
         email: data.email || null,
@@ -404,9 +509,13 @@ function createCliente(data) {
         ciudad: data.ciudad || null,
         notas: data.notas || null,
         createdAt: now,
-        updatedAt: now
+        updatedAt: now,
+        cloudId: randomUUID(),
+        })
+        enqueueChange(db, 'clientes', info.lastInsertRowid, 'INSERT')
+        return info.lastInsertRowid
     });
-    return getClienteById(info.lastInsertRowid);
+    return getClienteById(create());
 }
 
 function getClientes(searchTerm = '') {
@@ -414,21 +523,47 @@ function getClientes(searchTerm = '') {
     const query = `
         SELECT 
             c.*, 
-            (SELECT COUNT(*) FROM cotizaciones q WHERE json_extract(q.cliente, '$.nombre') = c.nombre) as totalCotizaciones,
-            (SELECT MAX(createdAt) FROM cotizaciones q WHERE json_extract(q.cliente, '$.nombre') = c.nombre) as ultimaCotizacion
+            (
+                SELECT COUNT(*) FROM cotizaciones q
+                WHERE q.deletedAt IS NULL
+                  AND (q.clienteId = c.id OR (
+                    q.clienteId IS NULL
+                    AND json_extract(q.cliente, '$.nombre') = c.nombre
+                    AND (
+                        SELECT COUNT(*) FROM clientes c2
+                        WHERE c2.deletedAt IS NULL AND c2.nombre = c.nombre
+                    ) = 1
+                  ))
+            ) as totalCotizaciones,
+            (
+                SELECT MAX(createdAt) FROM cotizaciones q
+                WHERE q.deletedAt IS NULL
+                  AND (q.clienteId = c.id OR (
+                    q.clienteId IS NULL
+                    AND json_extract(q.cliente, '$.nombre') = c.nombre
+                    AND (
+                        SELECT COUNT(*) FROM clientes c2
+                        WHERE c2.deletedAt IS NULL AND c2.nombre = c.nombre
+                    ) = 1
+                  ))
+            ) as ultimaCotizacion
         FROM clientes c
-        WHERE c.nombre LIKE @search OR c.rif LIKE @search
+        WHERE c.deletedAt IS NULL AND (c.nombre LIKE @search OR c.rif LIKE @search)
         ORDER BY c.nombre ASC
     `;
     return db.prepare(query).all({ search: `%${searchTerm}%` });
 }
 
 function getClienteById(id) {
-    return db.prepare('SELECT * FROM clientes WHERE id = ?').get(id);
+    return db.prepare(
+        'SELECT * FROM clientes WHERE id = ? AND deletedAt IS NULL',
+    ).get(id);
 }
 
 function updateCliente(id, data) {
-    const existing = db.prepare('SELECT * FROM clientes WHERE id = ?').get(id);
+    const existing = db.prepare(
+        'SELECT * FROM clientes WHERE id = ? AND deletedAt IS NULL',
+    ).get(id);
     if (!existing) return null;
     const now = new Date().toISOString();
     const updateQuery = db.prepare(`
@@ -440,10 +575,12 @@ function updateCliente(id, data) {
             direccion = @direccion,
             ciudad = @ciudad,
             notas = @notas,
-            updatedAt = @updatedAt
+            updatedAt = @updatedAt,
+            version = version + 1
         WHERE id = @id
     `);
-    updateQuery.run({
+    const update = db.transaction(() => {
+        updateQuery.run({
         id,
         nombre: data.nombre !== undefined ? data.nombre : existing.nombre,
         telefono: data.telefono !== undefined ? data.telefono : existing.telefono,
@@ -453,13 +590,26 @@ function updateCliente(id, data) {
         ciudad: data.ciudad !== undefined ? data.ciudad : existing.ciudad,
         notas: data.notas !== undefined ? data.notas : existing.notas,
         updatedAt: now
+        })
+        enqueueChange(db, 'clientes', id, 'UPDATE')
     });
+    update()
     return getClienteById(id);
 }
 
 function deleteCliente(id) {
-    const info = db.prepare('DELETE FROM clientes WHERE id = ?').run(id);
-    return info.changes > 0;
+    const now = new Date().toISOString()
+    const deleteClient = db.transaction(() => {
+        const info = db.prepare(`
+            UPDATE clientes
+            SET deletedAt = ?, updatedAt = ?, version = version + 1
+            WHERE id = ? AND deletedAt IS NULL
+        `).run(now, now, id)
+        if (info.changes === 0) return false
+        enqueueChange(db, 'clientes', id, 'DELETE')
+        return true
+    })
+    return deleteClient()
 }
 
 // ------- Backup & Restore Operations ------- //
@@ -499,57 +649,78 @@ function importData(data) {
     }
 
     const tx = db.transaction(() => {
-        // Disable foreign keys temporarily for the bulk import
-        db.pragma('foreign_keys = OFF');
-        
-        // Clear existing tables
+        const now = new Date().toISOString()
+        const entityTables = ['items', 'cotizaciones', 'clientes', 'productos']
+
+        for (const tableName of entityTables) {
+            const activeRecords = db.prepare(
+                `SELECT id FROM ${tableName} WHERE deletedAt IS NULL`,
+            ).all()
+            db.prepare(`
+                UPDATE ${tableName}
+                SET deletedAt = ?, updatedAt = ?, version = version + 1
+                WHERE deletedAt IS NULL
+            `).run(now, now)
+            for (const { id } of activeRecords) {
+                enqueueChange(db, tableName, id, 'DELETE')
+            }
+        }
+
         db.prepare('DELETE FROM items').run();
         db.prepare('DELETE FROM cotizaciones').run();
         db.prepare('DELETE FROM clientes').run();
         db.prepare('DELETE FROM productos').run();
 
-        // Insert Cotizaciones
-        if (data.cotizaciones.length > 0) {
-            const columns = Object.keys(data.cotizaciones[0]).join(', ');
-            const placeholders = Object.keys(data.cotizaciones[0]).map(k => `@${k}`).join(', ');
-            const insertCotizacion = db.prepare(`INSERT INTO cotizaciones (${columns}) VALUES (${placeholders})`);
-            for (const row of data.cotizaciones) {
-                insertCotizacion.run(row);
+        const importRecords = (tableName, records) => {
+            const allowedColumns = new Set(
+                db.pragma(`table_info(${tableName})`).map(column => column.name),
+            )
+            const timestamp = new Date().toISOString()
+
+            for (const record of records || []) {
+                if (!record || typeof record !== 'object' || Array.isArray(record)) {
+                    throw new Error(`Registro inválido en la tabla ${tableName}.`)
+                }
+
+                const values = Object.fromEntries(
+                    Object.entries(record).filter(([column]) => allowedColumns.has(column)),
+                )
+                values.cloudId ||= randomUUID()
+                values.version ??= 1
+                values.remoteVersion ??= 0
+                values.syncedVersion ??= 0
+                values.deletedAt ??= null
+                values.updatedAt ??= timestamp
+                if (tableName === 'items') values.createdAt ??= timestamp
+                if (tableName === 'cotizaciones') {
+                    values.clienteId ??= null
+                    values.folioProvisional ??= 0
+                }
+                if (tableName === 'items') values.productoId ??= null
+
+                const columns = Object.keys(values)
+                if (columns.length === 0) {
+                    throw new Error(`No hay columnas válidas para importar en ${tableName}.`)
+                }
+                const insert = db.prepare(`
+                    INSERT INTO ${tableName} (${columns.join(', ')})
+                    VALUES (${columns.map(column => `@${column}`).join(', ')})
+                `)
+                const info = insert.run(values)
+                const localId = values.id ?? info.lastInsertRowid
+                enqueueChange(
+                    db,
+                    tableName,
+                    localId,
+                    values.deletedAt ? 'DELETE' : (values.remoteVersion > 0 ? 'UPDATE' : 'INSERT'),
+                )
             }
         }
 
-        // Insert Items
-        if (data.items.length > 0) {
-            const columns = Object.keys(data.items[0]).join(', ');
-            const placeholders = Object.keys(data.items[0]).map(k => `@${k}`).join(', ');
-            const insertItem = db.prepare(`INSERT INTO items (${columns}) VALUES (${placeholders})`);
-            for (const row of data.items) {
-                insertItem.run(row);
-            }
-        }
-
-        // Insert Clientes
-        if (data.clientes.length > 0) {
-            const columns = Object.keys(data.clientes[0]).join(', ');
-            const placeholders = Object.keys(data.clientes[0]).map(k => `@${k}`).join(', ');
-            const insertCliente = db.prepare(`INSERT INTO clientes (${columns}) VALUES (${placeholders})`);
-            for (const row of data.clientes) {
-                insertCliente.run(row);
-            }
-        }
-
-        // Insert Productos
-        if (data.productos && data.productos.length > 0) {
-            const columns = Object.keys(data.productos[0]).join(', ');
-            const placeholders = Object.keys(data.productos[0]).map(k => `@${k}`).join(', ');
-            const insertProducto = db.prepare(`INSERT INTO productos (${columns}) VALUES (${placeholders})`);
-            for (const row of data.productos) {
-                insertProducto.run(row);
-            }
-        }
-        
-        // Re-enable foreign keys
-        db.pragma('foreign_keys = ON');
+        importRecords('clientes', data.clientes)
+        importRecords('productos', data.productos)
+        importRecords('cotizaciones', data.cotizaciones)
+        importRecords('items', data.items)
     });
 
     tx();
