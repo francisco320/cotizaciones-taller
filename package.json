@@ -25,6 +25,7 @@
     "start": "electron ."
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
     "better-sqlite3": "^12.6.2",
     "electron-store": "^8.1.0",
     "pdfkit": "^0.17.2",
@@ -33,10 +34,10 @@
   "devDependencies": {
     "@electron/rebuild": "^4.0.3",
     "concurrently": "^9.2.1",
+    "cross-env": "^7.0.3",
     "electron": "^34.5.8",
     "electron-builder": "^25.1.8",
-    "wait-on": "^8.0.5",
-    "cross-env": "^7.0.3"
+    "wait-on": "^8.0.5"
   },
   "build": {
     "appId": "com.cotizaciones.app",
