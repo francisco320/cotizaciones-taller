@@ -1,3 +1,8 @@
+---
+description: Instrucciones para la migración de SQLite a Supabase.
+applyTo: "**/*"
+---
+
 # Migración de almacenamiento local a Supabase — Cotizaciones Taller
 
 ## Rol
