@@ -1,6 +1,6 @@
-# Cotizaciones JS (Electron + SQLite) + proximamente mini web movil
+# Cotizaciones Taller (Electron + SQLite y web móvil)
 
-Aplicación de escritorio offline para gestionar cotizaciones automotrices con generación de PDFs.
+Aplicación de escritorio offline para gestionar cotizaciones automotrices con generación de PDFs y un flujo web móvil online para crear cotizaciones en Supabase.
 
 ## 🧭 Descripción
 
@@ -14,6 +14,7 @@ Esta app es un proyecto Electron + React + SQLite para crear, editar, listar, el
 - Previsualización de PDF embebido en la UI
 - Guardado de PDFs en carpeta seleccionada por el usuario
 - Configuración local de carpeta de PDFs (`electron-store` o fallback JSON)
+- Creación de cotizaciones desde el navegador del celular para usuarios autenticados
 
 ## 📁 Estructura del proyecto
 
@@ -120,6 +121,35 @@ Antes de habilitar sincronización en una instalación, ejecuta manualmente
 La aplicación local no ejecuta migraciones remotas. Luego inicia sesión desde
 el indicador de sincronización. Sin conexión o sin sesión, las operaciones
 locales continúan disponibles y se encolan para sincronización posterior.
+
+### Web móvil
+
+La aplicación detecta el navegador web y muestra un formulario móvil separado
+del flujo Electron/SQLite. La web requiere internet y una sesión existente de
+Supabase Auth; no ofrece registro público. El formulario busca clientes activos
+y permite consultar cotizaciones paginadas con sus ítems. Las cotizaciones
+pueden exportarse a PDF desde el navegador. El formulario guarda la cotización
+junto con sus ítems mediante `sync_save_cotizacion`, que asigna el folio en
+Supabase.
+
+Configura estas variables en `frontend/.env.local` para desarrollo o en el
+entorno del hosting:
+
+```env
+VITE_SUPABASE_URL=https://<project-ref>.supabase.co
+VITE_SUPABASE_ANON_KEY=<publishable-or-anon-key>
+```
+
+La clave publicable/anon es visible para el navegador y no reemplaza RLS.
+Nunca uses una `service_role` key en variables `VITE_*`. La configuración de
+Auth debe mantener deshabilitado el registro público. Las políticas actuales
+permiten operaciones a cualquier usuario autenticado; limita las cuentas que
+pueden iniciar sesión y revisa RLS antes de ampliar el acceso.
+
+El despliegue estático usa el build `frontend/dist` generado por `pnpm run
+build`. Configura ambas variables `VITE_*` en el proveedor antes de construir.
+La web crea cotizaciones en Supabase; el sistema de sincronización de Electron
+las descargará a SQLite durante su siguiente ciclo de sincronización.
 
 ### Cambios en PDF
 

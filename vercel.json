@@ -1,13 +1,6 @@
 {
     "version": 2,
-    "rewrites": [
-        {
-            "source": "/api/(.*)",
-            "destination": "/api/index.js"
-        },
-        {
-            "source": "/(.*)",
-            "destination": "/frontend/dist/$1"
-        }
-    ]
+    "installCommand": "pnpm install --frozen-lockfile",
+    "buildCommand": "pnpm run build",
+    "outputDirectory": "frontend/dist"
 }
