@@ -24,12 +24,24 @@ jobs:
       - name: Instalar dependencias
         run: pnpm install
 
+      - name: Configurar Supabase para el build
+        shell: pwsh
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          if (-not $env:VITE_SUPABASE_URL -or -not $env:VITE_SUPABASE_ANON_KEY) {
+            throw "Configura los Secrets VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY en GitHub."
+          }
+
+          $envContent = "VITE_SUPABASE_URL=$($env:VITE_SUPABASE_URL)`nVITE_SUPABASE_ANON_KEY=$($env:VITE_SUPABASE_ANON_KEY)`n"
+          $envPath = Join-Path $PWD "frontend/.env.local"
+          [System.IO.File]::WriteAllText($envPath, $envContent, [System.Text.UTF8Encoding]::new($false))
+
       - name: Build app
         run: pnpm run dist:win
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
       - name: Subir instalador
         uses: actions/upload-artifact@v4
         with:
