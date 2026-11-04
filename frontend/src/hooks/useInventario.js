@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useSyncCompleted } from './useSyncCompleted';
 
 export function useInventario() {
+    const syncRevision = useSyncCompleted();
     const [productos, setProductos] = useState([]);
     const [stats, setStats] = useState({ total: 0, agotados: 0, bajoStock: 0, valorTotal: 0 });
     const [loading, setLoading] = useState(false);
@@ -32,7 +34,7 @@ export function useInventario() {
             fetchInventario(searchTerm);
         }, 300); // 300ms debounce
         return () => clearTimeout(timeoutId);
-    }, [searchTerm, fetchInventario]);
+    }, [searchTerm, fetchInventario, syncRevision]);
 
     const createProduct = async (data) => {
         const response = await window.electronAPI.createProduct(data);

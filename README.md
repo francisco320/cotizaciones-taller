@@ -127,6 +127,8 @@ Antes de habilitar sincronización en una instalación, ejecuta manualmente
 La aplicación local no ejecuta migraciones remotas. Luego inicia sesión desde
 el indicador de sincronización. Sin conexión o sin sesión, las operaciones
 locales continúan disponibles y se encolan para sincronización posterior.
+Al completarse una sincronización, las pantallas abiertas de cotizaciones,
+clientes e inventario vuelven a consultar SQLite para mostrar los cambios recibidos.
 
 ### Web móvil
 

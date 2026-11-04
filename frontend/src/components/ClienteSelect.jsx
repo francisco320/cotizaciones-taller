@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { clientesAPI } from '../api/client';
 import { ClienteModal } from './ClienteModal';
+import { useSyncCompleted } from '../hooks/useSyncCompleted';
 
 export function ClienteSelect({ value, onChange, onClientSelect }) {
+  const syncRevision = useSyncCompleted();
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState(value || '');
   const [clientes, setClientes] = useState([]);
@@ -34,7 +36,7 @@ export function ClienteSelect({ value, onChange, onClientSelect }) {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [search, isOpen]);
+  }, [search, isOpen, syncRevision]);
 
   // Handle outside click
   useEffect(() => {

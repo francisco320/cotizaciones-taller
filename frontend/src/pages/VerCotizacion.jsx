@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { electronAPI } from '../api/client'
+import { useSyncCompleted } from '../hooks/useSyncCompleted'
 
 export function VerCotizacion() {
   const { id } = useParams()
+  const syncRevision = useSyncCompleted()
   const [cotizacion, setCotizacion] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -16,7 +18,7 @@ export function VerCotizacion() {
       .then(setCotizacion)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
-  }, [id])
+  }, [id, syncRevision])
 
   useEffect(() => {
     setFolderLoading(true)

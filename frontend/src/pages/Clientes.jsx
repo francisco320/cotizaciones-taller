@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { clientesAPI } from '../api/client';
 import { ClienteModal } from '../components/ClienteModal';
+import { useSyncCompleted } from '../hooks/useSyncCompleted';
 
 export function Clientes() {
+  const syncRevision = useSyncCompleted();
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -29,7 +31,7 @@ export function Clientes() {
       fetchClientes();
     }, 300);
     return () => clearTimeout(timer);
-  }, [search]);
+  }, [search, syncRevision]);
 
   const handleCreate = () => {
     setClienteToEdit(null);

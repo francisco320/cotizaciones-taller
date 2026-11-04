@@ -106,6 +106,12 @@ const { generarPDF } = require('./electron/pdfGenerator');
 const authService = require('./electron/authService');
 const { syncEngine } = require('./electron/syncEngine');
 
+syncEngine.onSyncCompleted(() => {
+    for (const window of BrowserWindow.getAllWindows()) {
+        if (!window.isDestroyed()) window.webContents.send('sync:completed')
+    }
+});
+
 ipcMain.handle('sync:status', () => syncEngine.getStatus());
 ipcMain.handle('sync:run', () => syncEngine.run());
 ipcMain.handle('auth:signIn', async (_event, email, password) => {

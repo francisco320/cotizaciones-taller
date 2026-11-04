@@ -16,6 +16,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     signIn: (email, password) => ipcRenderer.invoke('auth:signIn', email, password),
     signOut: () => ipcRenderer.invoke('auth:signOut'),
     syncNow: () => ipcRenderer.invoke('sync:run'),
+    onSyncCompleted: (callback) => {
+        const listener = () => callback()
+        ipcRenderer.on('sync:completed', listener)
+        return () => ipcRenderer.removeListener('sync:completed', listener)
+    },
 
     // --- Metodos de Clientes ---
     getClientes: (searchTerm) => ipcRenderer.invoke('clientes:list', searchTerm),
@@ -57,6 +62,11 @@ contextBridge.exposeInMainWorld('api', {
     signIn: (email, password) => ipcRenderer.invoke('auth:signIn', email, password),
     signOut: () => ipcRenderer.invoke('auth:signOut'),
     syncNow: () => ipcRenderer.invoke('sync:run'),
+    onSyncCompleted: (callback) => {
+        const listener = () => callback()
+        ipcRenderer.on('sync:completed', listener)
+        return () => ipcRenderer.removeListener('sync:completed', listener)
+    },
     getClientes: (searchTerm) => ipcRenderer.invoke('clientes:list', searchTerm),
     getCliente: (id) => ipcRenderer.invoke('clientes:get', id),
     createCliente: (data) => ipcRenderer.invoke('clientes:create', data),

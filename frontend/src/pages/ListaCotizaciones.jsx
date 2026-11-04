@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { electronAPI } from '../api/client'
 import { resumenCotizacion } from '../lib/calculations'
+import { useSyncCompleted } from '../hooks/useSyncCompleted'
 
 export function ListaCotizaciones() {
+  const syncRevision = useSyncCompleted()
   const [data, setData] = useState({ items: [], total: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -17,7 +19,7 @@ export function ListaCotizaciones() {
       .then(setData)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
-  }, [])
+  }, [syncRevision])
 
   if (loading) {
     return (

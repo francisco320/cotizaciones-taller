@@ -316,6 +316,7 @@ function createSyncEngine({ store = db, auth = authService, online = () => net.i
     let activeRun = null
     let interval = null
     let lastError = null
+    const syncCompletedListeners = new Set()
 
     async function requireClient() {
         const authStatus = await auth.getStatus()
@@ -737,6 +738,13 @@ function createSyncEngine({ store = db, auth = authService, online = () => net.i
         setMetadata('last_successful_sync', new Date().toISOString(), store)
         setMetadata('last_sync_error', null, store)
         lastError = null
+        for (const listener of syncCompletedListeners) {
+            try {
+                listener()
+            } catch (error) {
+                console.error('Error notificando la sincronización completada:', error)
+            }
+        }
         return { started: true, reason: null }
     }
 
@@ -789,7 +797,12 @@ function createSyncEngine({ store = db, auth = authService, online = () => net.i
         interval = null
     }
 
-    return { run, getStatus, start, stop }
+    function onSyncCompleted(listener) {
+        syncCompletedListeners.add(listener)
+        return () => syncCompletedListeners.delete(listener)
+    }
+
+    return { run, getStatus, start, stop, onSyncCompleted }
 }
 
 const syncEngine = createSyncEngine()
