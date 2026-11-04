@@ -11,6 +11,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     updateCotizacion: (id, data) => ipcRenderer.invoke('cotizaciones:update', id, data),
     deleteCotizacion: (id) => ipcRenderer.invoke('cotizaciones:delete', id),
 
+    // --- Sincronización ---
+    getSyncStatus: () => ipcRenderer.invoke('sync:status'),
+    signIn: (email, password) => ipcRenderer.invoke('auth:signIn', email, password),
+    signOut: () => ipcRenderer.invoke('auth:signOut'),
+    syncNow: () => ipcRenderer.invoke('sync:run'),
+
     // --- Metodos de Clientes ---
     getClientes: (searchTerm) => ipcRenderer.invoke('clientes:list', searchTerm),
     getCliente: (id) => ipcRenderer.invoke('clientes:get', id),
@@ -47,6 +53,10 @@ contextBridge.exposeInMainWorld('api', {
     createCotizacion: (data) => ipcRenderer.invoke('cotizaciones:create', data),
     updateCotizacion: (id, data) => ipcRenderer.invoke('cotizaciones:update', id, data),
     deleteCotizacion: (id) => ipcRenderer.invoke('cotizaciones:delete', id),
+    getSyncStatus: () => ipcRenderer.invoke('sync:status'),
+    signIn: (email, password) => ipcRenderer.invoke('auth:signIn', email, password),
+    signOut: () => ipcRenderer.invoke('auth:signOut'),
+    syncNow: () => ipcRenderer.invoke('sync:run'),
     getClientes: (searchTerm) => ipcRenderer.invoke('clientes:list', searchTerm),
     getCliente: (id) => ipcRenderer.invoke('clientes:get', id),
     createCliente: (data) => ipcRenderer.invoke('clientes:create', data),

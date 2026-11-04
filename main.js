@@ -103,6 +103,20 @@ async function ensurePdfFolder(window) {
 const db = require('./electron/database');
 const inventoryService = require('./electron/inventoryService');
 const { generarPDF } = require('./electron/pdfGenerator');
+const authService = require('./electron/authService');
+const { syncEngine } = require('./electron/syncEngine');
+
+ipcMain.handle('sync:status', () => syncEngine.getStatus());
+ipcMain.handle('sync:run', () => syncEngine.run());
+ipcMain.handle('auth:signIn', async (_event, email, password) => {
+    if (typeof email !== 'string' || typeof password !== 'string' || !email.trim() || !password) {
+        throw new Error('Ingresa el correo y la contraseña de tu cuenta invitada.')
+    }
+    const status = await authService.signIn(email, password)
+    syncEngine.run().catch(error => console.error('Error al iniciar la sincronización:', error))
+    return status
+});
+ipcMain.handle('auth:signOut', () => authService.signOut());
 
 async function createWindow() {
     const mainWindow = new BrowserWindow({
@@ -382,6 +396,12 @@ if (!app.isPackaged) {
 // ─────────────────────────────────────────────
 
 app.whenReady().then(async () => {
+    try {
+        await authService.initialize();
+    } catch (error) {
+        console.error('No se pudo restaurar la sesión de Supabase; la aplicación seguirá en modo local:', error);
+    }
+    syncEngine.start();
     await createWindow();
 
     app.on('activate', () => {
@@ -389,6 +409,11 @@ app.whenReady().then(async () => {
             createWindow();
         }
     });
+});
+
+app.on('before-quit', () => {
+    syncEngine.stop();
+    authService.dispose();
 });
 
 app.on('window-all-closed', () => {

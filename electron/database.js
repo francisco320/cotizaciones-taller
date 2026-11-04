@@ -298,7 +298,9 @@ function parseCotizacionRow(row) {
             serial: row.serialBomba
         },
         vehiculoTexto: vehiculoText || oldVehiculo.vehiculo, // Flat string for react
-        numeroFormateado: String(row.numero).padStart(7, '0'),
+        numeroFormateado: row.folioProvisional
+            ? `P${String(Math.abs(row.numero)).padStart(6, '0')}`
+            : String(row.numero).padStart(7, '0'),
         _id: row.id
     };
 }
@@ -651,6 +653,7 @@ function importData(data) {
     const tx = db.transaction(() => {
         const now = new Date().toISOString()
         const entityTables = ['items', 'cotizaciones', 'clientes', 'productos']
+        const backupIds = {}
 
         for (const tableName of entityTables) {
             const activeRecords = db.prepare(
@@ -666,35 +669,109 @@ function importData(data) {
             }
         }
 
-        db.prepare('DELETE FROM items').run();
-        db.prepare('DELETE FROM cotizaciones').run();
-        db.prepare('DELETE FROM clientes').run();
-        db.prepare('DELETE FROM productos').run();
-
         const importRecords = (tableName, records) => {
             const allowedColumns = new Set(
                 db.pragma(`table_info(${tableName})`).map(column => column.name),
             )
-            const timestamp = new Date().toISOString()
+            const idMap = new Map()
+            backupIds[tableName] = idMap
 
             for (const record of records || []) {
                 if (!record || typeof record !== 'object' || Array.isArray(record)) {
                     throw new Error(`Registro inválido en la tabla ${tableName}.`)
                 }
 
+                const backupId = Number.isSafeInteger(Number(record.id))
+                    && record.id != null
+                    && Number(record.id) > 0
+                    ? Number(record.id)
+                    : null
+                const byCloudId = record.cloudId
+                    ? db.prepare(`SELECT * FROM ${tableName} WHERE cloudId = ?`).get(record.cloudId)
+                    : null
+                const byLocalId = backupId !== null
+                    ? db.prepare(`SELECT * FROM ${tableName} WHERE id = ?`).get(backupId)
+                    : null
+                const existing = byCloudId
+                    || (!record.cloudId || !byLocalId || byLocalId.cloudId === record.cloudId
+                        ? byLocalId
+                        : null)
+                const cloudId = record.cloudId || existing?.cloudId || randomUUID()
                 const values = Object.fromEntries(
                     Object.entries(record).filter(([column]) => allowedColumns.has(column)),
                 )
-                values.cloudId ||= randomUUID()
-                values.version ??= 1
-                values.remoteVersion ??= 0
-                values.syncedVersion ??= 0
-                values.deletedAt ??= null
-                values.updatedAt ??= timestamp
-                if (tableName === 'items') values.createdAt ??= timestamp
+                delete values.id
+                values.cloudId = cloudId
+                values.deletedAt = record.deletedAt ?? null
+                if (tableName === 'cotizaciones' && values.clienteId != null) {
+                    const mappedClienteId = backupIds.clientes.get(Number(values.clienteId))
+                    if (!mappedClienteId) {
+                        throw new Error(`No se pudo resolver el cliente ${values.clienteId} de una cotización importada.`)
+                    }
+                    values.clienteId = mappedClienteId
+                }
+                if (tableName === 'items') {
+                    if (values.cotizacionId != null) {
+                        values.cotizacionId = backupIds.cotizaciones.get(Number(values.cotizacionId)) ?? null
+                    }
+                    if (values.productoId != null) {
+                        const mappedProductoId = backupIds.productos.get(Number(values.productoId))
+                        if (!mappedProductoId) {
+                            throw new Error(`No se pudo resolver el producto ${values.productoId} de un ítem importado.`)
+                        }
+                        values.productoId = mappedProductoId
+                    }
+                    if (!values.cotizacionId) {
+                        throw new Error('No se pudo resolver la cotización asociada a un ítem importado.')
+                    }
+                }
+
+                if (existing) {
+                    values.version = Math.max(
+                        Number(existing.version) || 1,
+                        Number(record.version) || 1,
+                    ) + 1
+                    values.remoteVersion = existing.remoteVersion || 0
+                    values.syncedVersion = existing.syncedVersion || 0
+                    values.createdAt = record.createdAt || existing.createdAt || now
+                    values.updatedAt = now
+                    const columns = Object.keys(values).filter(column => column !== 'cloudId')
+                    const update = db.prepare(`
+                        UPDATE ${tableName}
+                        SET ${columns.map(column => `${column} = @${column}`).join(', ')},
+                            cloudId = @cloudId
+                        WHERE id = @id
+                    `)
+                    update.run({ ...values, id: existing.id })
+                    if (backupId !== null) idMap.set(backupId, existing.id)
+                    enqueueChange(
+                        db,
+                        tableName,
+                        existing.id,
+                        values.deletedAt ? 'DELETE' : (values.remoteVersion > 0 ? 'UPDATE' : 'INSERT'),
+                    )
+                    continue
+                }
+
+                values.version = Number(record.version) || 1
+                values.remoteVersion = Number(record.remoteVersion) || 0
+                values.syncedVersion = Number(record.syncedVersion) || 0
+                values.updatedAt = record.updatedAt || now
+                if (tableName === 'items') values.createdAt = record.createdAt || now
                 if (tableName === 'cotizaciones') {
                     values.clienteId ??= null
                     values.folioProvisional ??= 0
+                    if (values.folioProvisional) {
+                        const numberTaken = db.prepare(
+                            'SELECT 1 FROM cotizaciones WHERE numero = ?',
+                        ).get(values.numero)
+                        if (numberTaken) {
+                            const minNum = db.prepare(
+                                'SELECT MIN(numero) AS minimum FROM cotizaciones',
+                            ).get().minimum
+                            values.numero = Math.min(0, Number(minNum) || 0) - 1
+                        }
+                    }
                 }
                 if (tableName === 'items') values.productoId ??= null
 
@@ -702,12 +779,18 @@ function importData(data) {
                 if (columns.length === 0) {
                     throw new Error(`No hay columnas válidas para importar en ${tableName}.`)
                 }
+                if (backupId !== null
+                    && !db.prepare(`SELECT 1 FROM ${tableName} WHERE id = ?`).get(backupId)) {
+                    values.id = backupId
+                    columns.unshift('id')
+                }
                 const insert = db.prepare(`
                     INSERT INTO ${tableName} (${columns.join(', ')})
                     VALUES (${columns.map(column => `@${column}`).join(', ')})
                 `)
                 const info = insert.run(values)
                 const localId = values.id ?? info.lastInsertRowid
+                if (backupId !== null) idMap.set(backupId, localId)
                 enqueueChange(
                     db,
                     tableName,

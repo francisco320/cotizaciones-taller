@@ -1,5 +1,6 @@
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import logo from '../assets/logo.png'
+import { SyncStatus } from './SyncStatus'
 
 export function Layout() {
   const location = useLocation();
@@ -61,7 +62,7 @@ export function Layout() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
         {/* Top Header (Optional for mobile toggle in future) */}
-        <header className="h-16 bg-white border-b border-slate-200 shrink-0 flex items-center px-6 shadow-sm z-10 justify-between">
+        <header className="h-16 bg-white border-b border-slate-200 shrink-0 flex items-center px-6 shadow-sm z-10 justify-between gap-4">
           <h1 className="text-xl font-semibold text-slate-800">
             {location.pathname === '/clientes' ? 'Gestión de Clientes' : 
              location.pathname === '/inventario' ? 'Inventario de Productos' :
@@ -70,6 +71,7 @@ export function Layout() {
              location.pathname.startsWith('/cotizacion/') ? 'Detalle de Cotización' : 
              'Listado de Cotizaciones'}
           </h1>
+          <SyncStatus />
         </header>
 
         {/* Scrollable Content */}

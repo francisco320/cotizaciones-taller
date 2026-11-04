@@ -93,6 +93,34 @@ SQLite se almacena en:
 - En desarrollo: `database.sqlite` en la raíz
 - En empaquetado: `${app.getPath('userData')}/database.sqlite`
 
+### Sincronización con Supabase
+
+SQLite continúa siendo la fuente de datos local. La sincronización requiere que
+el proceso de Electron reciba `SUPABASE_URL` y `SUPABASE_ANON_KEY` como variables
+de entorno; la aplicación no lee archivos `.env`. No configures una clave
+`service_role`.
+
+En PowerShell, configura las variables solo para la sesión de desarrollo antes
+de ejecutar `pnpm run dev`:
+
+```powershell
+$env:SUPABASE_URL = "https://<project-ref>.supabase.co"
+$env:SUPABASE_ANON_KEY = "<publishable-key>"
+pnpm run dev
+```
+
+Para una aplicación empaquetada, configura esas variables en el entorno de
+usuario o del sistema de Windows y reinicia la aplicación. Mantén la clave
+publishable fuera del repositorio. La autenticación utiliza cuentas invitadas
+de Supabase; la sesión se conserva cifrada cuando Electron dispone de
+almacenamiento seguro.
+
+Antes de habilitar sincronización en una instalación, ejecuta manualmente
+`supabase/migrations/202611020002_sync_rpc.sql` en el SQL Editor del proyecto.
+La aplicación local no ejecuta migraciones remotas. Luego inicia sesión desde
+el indicador de sincronización. Sin conexión o sin sesión, las operaciones
+locales continúan disponibles y se encolan para sincronización posterior.
+
 ### Cambios en PDF
 
 El diseño y generación de PDF están en `electron/layout.js` y `electron/pdfGenerator.js`.
