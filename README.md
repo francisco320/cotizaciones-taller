@@ -110,11 +110,17 @@ $env:SUPABASE_ANON_KEY = "<publishable-key>"
 pnpm run dev
 ```
 
-Para una aplicación empaquetada, configura esas variables en el entorno de
-usuario o del sistema de Windows y reinicia la aplicación. Mantén la clave
-publishable fuera del repositorio. La autenticación utiliza cuentas invitadas
-de Supabase; la sesión se conserva cifrada cuando Electron dispone de
-almacenamiento seguro.
+En desarrollo, la autenticación utiliza cuentas existentes de Supabase; la
+sesión se conserva cifrada cuando Electron dispone de almacenamiento seguro.
+
+Los comandos `pnpm run dist:win`, `pnpm run dist:linux` y `pnpm run dist:mac`
+generan una configuración de Supabase dentro del paquete usando las variables
+de entorno `SUPABASE_URL` y `SUPABASE_ANON_KEY`, o los valores `VITE_SUPABASE_URL`
+y `VITE_SUPABASE_ANON_KEY` de `frontend/.env.local`. Así, quienes instalen el
+programa no tienen que configurar variables de Windows. Para GitHub Actions,
+define `SUPABASE_URL` como variable del repositorio y `SUPABASE_ANON_KEY` como
+secreto del repositorio. Solo uses una clave publishable/anon; nunca incluyas
+una clave `service_role`.
 
 Antes de habilitar sincronización en una instalación, ejecuta manualmente
 `supabase/migrations/202611020002_sync_rpc.sql` en el SQL Editor del proyecto.

@@ -1,8 +1,14 @@
 const { createClient } = require('@supabase/supabase-js')
 const WebSocket = require('ws')
+const fs = require('node:fs')
+const path = require('node:path')
 
-const supabaseUrl = process.env.SUPABASE_URL
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY
+const configPath = path.join(__dirname, 'supabase-config.json')
+const packagedConfig = fs.existsSync(configPath)
+    ? JSON.parse(fs.readFileSync(configPath, 'utf8'))
+    : {}
+const supabaseUrl = process.env.SUPABASE_URL || packagedConfig.url
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || packagedConfig.anonKey
 
 let configurationError = null
 let supabase = null

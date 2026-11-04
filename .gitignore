@@ -47,6 +47,7 @@ Thumbs.db
 # =========================
 resources
 *.blockmap
+/electron/supabase-config.json
 
 # =========================
 # Vite
