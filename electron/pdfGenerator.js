@@ -46,7 +46,13 @@ async function generarPDF(cotizacion, filePath, options = {}) {
             }
         }
 
-        const doc = new PDFDocument({ margin: layout.page.margin, size: layout.page.size || 'letter' });
+        const sourceItems = cotizacion.resumen?.items || cotizacion.items || [];
+        const compact = sourceItems.length >= 25;
+        const pageLayout = {
+            compact,
+            margin: compact ? 24 : layout.page.margin
+        };
+        const doc = new PDFDocument({ margin: pageLayout.margin, size: layout.page.size || 'letter' });
         const writeStream = fs.createWriteStream(filePath);
 
         doc.pipe(writeStream);
@@ -55,22 +61,23 @@ async function generarPDF(cotizacion, filePath, options = {}) {
         writeStream.on('error', reject);
         doc.on('error', reject);
 
-        let y = layout.page.marginTop;
+        let y = compact ? 24 : layout.page.marginTop;
 
-        y = drawHeader(doc, cotizacion, options.logoPath, y);
-        y = drawClientInfo(doc, cotizacion, y);
-        y = drawServiceInfo(doc, cotizacion, y);
-        y = drawItemsTable(doc, cotizacion, y);
-        y = drawTotals(doc, cotizacion, y);
-        y = drawObservations(doc, cotizacion, y);
-        drawFooter(doc, cotizacion);
+        y = drawHeader(doc, cotizacion, options.logoPath, y, pageLayout);
+        y = drawClientInfo(doc, cotizacion, y, pageLayout);
+        y = drawServiceInfo(doc, cotizacion, y, pageLayout);
+        y = drawItemsTable(doc, cotizacion, y, pageLayout);
+        y = drawTotals(doc, cotizacion, y, pageLayout);
+        y = drawObservations(doc, cotizacion, y, pageLayout);
+        drawFooter(doc, cotizacion, pageLayout);
 
         doc.end();
     });
 }
 
-function drawHeader(doc, cotizacion, logoPath, startY) {
-    const margin = layout.page.margin;
+function drawHeader(doc, cotizacion, logoPath, startY, pageLayout = {}) {
+    const compact = pageLayout.compact;
+    const margin = pageLayout.margin ?? layout.page.margin;
     let y = startY;
 
     // ----- Header -----
@@ -82,6 +89,71 @@ function drawHeader(doc, cotizacion, logoPath, startY) {
     // drawW/drawH represent el tamaño efectivo que dibujaremos
     let drawW = defaultLogoW;
     let drawH = defaultLogoH;
+
+    if (compact) {
+        const maxLogoW = 44;
+        const maxLogoH = 34;
+        if (logoPath) {
+            try {
+                const img = doc.openImage(logoPath);
+                const scale = Math.min(1, maxLogoW / img.width, maxLogoH / img.height);
+                drawW = Math.round(img.width * scale);
+                drawH = Math.round(img.height * scale);
+                doc.image(logoPath, margin, y, { width: drawW, height: drawH });
+                headerTextX += drawW + 7;
+            } catch (err) {
+                console.warn('Could not load logo:', err.message);
+            }
+        }
+
+        const rightBlockWidth = 180;
+        const rightBlockX = doc.page.width - margin - rightBlockWidth;
+        const companyWidth = Math.max(130, rightBlockX - headerTextX - 8);
+        const companyName = cotizacion.empresa?.nombre || 'Empresa';
+        doc.font('Helvetica-Bold').fontSize(12).fillColor(layout.colors.header);
+        doc.text(companyName, headerTextX, y, { width: companyWidth });
+        let companyY = y + doc.heightOfString(companyName, { width: companyWidth, font: 'Helvetica-Bold', fontSize: 12 }) + 2;
+
+        const contacts = [
+            cotizacion.empresa?.telefono && `Tel: ${cotizacion.empresa.telefono}`,
+            cotizacion.empresa?.email
+        ].filter(Boolean).join(' | ');
+        doc.font('Helvetica').fontSize(7).fillColor(layout.colors.light);
+        if (contacts) {
+            doc.text(contacts, headerTextX, companyY, { width: companyWidth });
+            companyY += doc.heightOfString(contacts, { width: companyWidth, font: 'Helvetica', fontSize: 7 }) + 1;
+        }
+        if (cotizacion.empresa?.direccion) {
+            doc.text(cotizacion.empresa.direccion, headerTextX, companyY, { width: companyWidth });
+            companyY += doc.heightOfString(cotizacion.empresa.direccion, {
+                width: companyWidth,
+                font: 'Helvetica',
+                fontSize: 7
+            }) + 1;
+        }
+
+        const numeroFormateado = cotizacion.numeroFormateado ?? String(cotizacion.numero || 0).padStart(7, '0');
+        doc.font('Helvetica-Bold').fontSize(14).fillColor(layout.colors.brand || '#0f766e');
+        doc.text('COTIZACIÓN', rightBlockX, y, { width: rightBlockWidth, align: 'right' });
+        doc.font('Helvetica-Bold').fontSize(10).fillColor(layout.colors.text);
+        doc.text(`# ${numeroFormateado}`, rightBlockX, y + 16, { width: rightBlockWidth, align: 'right' });
+        doc.font('Helvetica').fontSize(7).fillColor(layout.colors.text);
+        doc.text(`Emisión: ${formatDate(cotizacion.fechaEmision)}`, rightBlockX, y + 29, {
+            width: rightBlockWidth,
+            align: 'right'
+        });
+        if (cotizacion.fechaVencimiento) {
+            doc.text(`Vence: ${formatDate(cotizacion.fechaVencimiento)}`, rightBlockX, y + 39, {
+                width: rightBlockWidth,
+                align: 'right'
+            });
+        }
+
+        const nextY = Math.max(companyY, y + (cotizacion.fechaVencimiento ? 50 : 40), y + drawH) + 4;
+        doc.moveTo(margin, nextY).lineTo(doc.page.width - margin, nextY)
+            .lineWidth(0.7).strokeColor(layout.colors.border || '#e6e8eb').stroke();
+        return nextY + 5;
+    }
 
     if (logoPath) {
         try {
@@ -171,9 +243,29 @@ function drawHeader(doc, cotizacion, logoPath, startY) {
     return nextY + 15;
 }
 
-function drawClientInfo(doc, cotizacion, startY) {
-    const margin = layout.page.margin;
+function drawClientInfo(doc, cotizacion, startY, pageLayout = {}) {
+    const margin = pageLayout.margin ?? layout.page.margin;
     const blockWidth = doc.page.width - margin * 2;
+    if (pageLayout.compact) {
+        let y = startY;
+        const width = blockWidth;
+        const clientLine = [
+            `Cliente: ${cotizacion.cliente?.nombre || '—'}`,
+            cotizacion.cliente?.telefono && `Tel: ${cotizacion.cliente.telefono}`,
+            cotizacion.cliente?.rif && `CI/RIF: ${cotizacion.cliente.rif}`
+        ].filter(Boolean).join('   |   ');
+        const addressLine = `Dirección: ${cotizacion.cliente?.direccion || '—'}`;
+
+        doc.font('Helvetica-Bold').fontSize(7.5).fillColor(layout.colors.header);
+        doc.text('CLIENTE', margin, y, { width });
+        y += 9;
+        doc.font('Helvetica').fontSize(7).fillColor(layout.colors.text);
+        doc.text(clientLine, margin, y, { width });
+        y += doc.heightOfString(clientLine, { width, font: 'Helvetica', fontSize: 7 }) + 1;
+        doc.text(addressLine, margin, y, { width });
+        y += doc.heightOfString(addressLine, { width, font: 'Helvetica', fontSize: 7 }) + 4;
+        return y;
+    }
     const padding = 10;
     const lineHeight = 14;
     const headerHeight = 16;
@@ -224,14 +316,36 @@ function drawClientInfo(doc, cotizacion, startY) {
     return startY + blockHeight + 8;
 }
 
-function drawServiceInfo(doc, cotizacion, startY) {
+function drawServiceInfo(doc, cotizacion, startY, pageLayout = {}) {
     const tipo = cotizacion.tipoServicio;
     const v = cotizacion.vehiculo || {};
 
     if (!tipo && !v.vehiculo && !v.modelo && !v.placa && !v.marca && !v.serial) return startY;
 
-    const margin = layout.page.margin;
+    const margin = pageLayout.margin ?? layout.page.margin;
     const blockWidth = doc.page.width - margin * 2;
+    if (pageLayout.compact) {
+        const fields = tipo === 'bomba_inyeccion'
+            ? [
+                { label: 'Marca', value: cotizacion.marcaBomba || v.marca || v.vehiculo || '—' },
+                { label: 'Modelo', value: cotizacion.modeloBomba || v.modelo || '—' },
+                { label: 'Serial', value: cotizacion.serialBomba || v.serial || v.placa || '—' },
+                { label: 'Otro', value: cotizacion.otroBomba || cotizacion.otro || v.otroBomba || v.otro || '—' }
+            ]
+            : [
+                { label: 'Vehículo', value: v.vehiculo || '—' },
+                { label: 'Modelo', value: v.modelo || '—' },
+                { label: 'Color', value: v.color || '—' },
+                { label: 'Placa', value: v.placa || '—' }
+            ];
+        const text = fields.map(field => `${field.label}: ${field.value}`).join('   |   ');
+        const width = blockWidth;
+        doc.font('Helvetica-Bold').fontSize(7.5).fillColor(layout.colors.header);
+        doc.text(tipo === 'bomba_inyeccion' ? 'BOMBA DE INYECCIÓN' : 'VEHÍCULO', margin, startY, { width });
+        doc.font('Helvetica').fontSize(7).fillColor(layout.colors.text);
+        doc.text(text, margin, startY + 9, { width });
+        return startY + 9 + doc.heightOfString(text, { width, font: 'Helvetica', fontSize: 7 }) + 4;
+    }
     const padding = 10;
     const headerHeight = 16;
 
@@ -307,24 +421,25 @@ function drawServiceInfo(doc, cotizacion, startY) {
     return startY + blockHeight + 8;
 }
 
-function drawItemsTable(doc, cotizacion, startY) {
+function drawItemsTable(doc, cotizacion, startY, pageLayout = {}) {
     let y = startY;
-    const margin = layout.page.margin;
+    const compact = pageLayout.compact;
+    const margin = pageLayout.margin ?? layout.page.margin;
     const pageWidth = doc.page.width;
     const innerWidth = pageWidth - margin * 2;
 
     const resumen = cotizacion.resumen || calcularResumenInMemory(cotizacion);
     const items = resumen.items || cotizacion.items || [];
 
-    const wRef = 30;
-    const wCant = 50;
-    const wUnit = 70;
-    const wTotal = 70;
+    const wRef = compact ? 25 : 30;
+    const wCant = compact ? 42 : 50;
+    const wUnit = compact ? 64 : 70;
+    const wTotal = compact ? 64 : 70;
     const wDesc = innerWidth - wRef - wCant - wUnit - wTotal;
 
-    const headerFontSize = 8.5;
-    const bodyFontSize = 9;
-    const pad = layout.table.colPadding || 6;
+    const headerFontSize = compact ? 7 : 8.5;
+    const bodyFontSize = compact ? 7 : 9;
+    const pad = compact ? 3 : (layout.table.colPadding || 6);
 
     const xRef = margin;
     const xDesc = xRef + wRef;
@@ -332,13 +447,16 @@ function drawItemsTable(doc, cotizacion, startY) {
     const xUnit = xCant + wCant;
     const xTot = xUnit + wUnit;
 
-    const contentBottom = doc.page.height - margin - (layout.footer?.marginTop || 24) - 20;
+    const contentBottom = doc.page.height - margin - (compact ? 34 : (layout.footer?.marginTop || 24) + 20);
+    const headerHeight = compact ? 15 : 22;
+    const headerTextOffset = compact ? 4 : 6;
+    const headerAfter = compact ? 18 : 26;
 
     const drawTableHeader = (headerY) => {
-        doc.roundedRect(margin, headerY, innerWidth, 22, 4).fill(layout.table.headerBg);
+        doc.roundedRect(margin, headerY, innerWidth, headerHeight, 4).fill(layout.table.headerBg);
         doc.fillColor(layout.colors.header).font('Helvetica-Bold').fontSize(headerFontSize);
 
-        const textY = headerY + 6;
+        const textY = headerY + headerTextOffset;
         doc.text('REF', xRef + pad, textY, { width: wRef - pad * 2, align: 'left' });
         doc.text('DESCRIPCIÓN', xDesc + pad, textY, { width: wDesc - pad * 2, align: 'left' });
         doc.text('CANT.', xCant + pad, textY, { width: wCant - pad * 2, align: 'right' });
@@ -346,7 +464,7 @@ function drawItemsTable(doc, cotizacion, startY) {
         doc.text('TOTAL', xTot + pad, textY, { width: wTotal - pad * 2, align: 'right' });
 
         doc.font('Helvetica').fontSize(bodyFontSize).fillColor(layout.colors.text);
-        return headerY + 26;
+        return headerY + headerAfter;
     };
 
     y = drawTableHeader(y);
@@ -354,21 +472,24 @@ function drawItemsTable(doc, cotizacion, startY) {
     items.forEach((item, i) => {
         const bg = i % 2 === 0 ? layout.table.rowBg : '#ffffff';
         const itemText = String(item.descripcion || '');
-        const itemHeight = Math.max(16, doc.heightOfString(itemText, { width: wDesc - pad * 2 }) + 6);
+        const itemHeight = Math.max(
+            compact ? 9 : 16,
+            doc.heightOfString(itemText, { width: wDesc - pad * 2 }) + (compact ? 1 : 6)
+        );
 
         const rowHeight = itemHeight;
 
         if (y + rowHeight > contentBottom) {
-            drawFooter(doc);
+            drawFooter(doc, cotizacion, pageLayout);
             doc.addPage();
-            y = drawTableHeader(layout.page.marginTop);
+            y = drawTableHeader(compact ? margin : layout.page.marginTop);
         }
 
         doc.save();
         doc.rect(margin, y, innerWidth, rowHeight).fill(bg);
         doc.restore();
 
-        const itemY = y + 4;
+        const itemY = y + (compact ? 1 : 4);
         doc.fillColor(layout.colors.text);
         doc.text(String(i + 1), xRef + pad, itemY, { width: wRef - pad * 2, align: 'left' });
         doc.text(itemText, xDesc + pad, itemY, { width: wDesc - pad * 2, align: 'left' });
@@ -382,46 +503,52 @@ function drawItemsTable(doc, cotizacion, startY) {
     return y + 12;
 }
 
-function drawTotals(doc, cotizacion, startY) {
+function drawTotals(doc, cotizacion, startY, pageLayout = {}) {
     const resumen = cotizacion.resumen || calcularResumenInMemory(cotizacion);
+    const compact = pageLayout.compact;
     let y = startY;
-    const margin = layout.page.margin;
+    const margin = pageLayout.margin ?? layout.page.margin;
 
-    const contentBottom = doc.page.height - margin - (layout.footer?.marginTop || 24) - 20;
-    const totalsHeight = resumen.aplicaIVA ? 76 : 60;
+    const contentBottom = doc.page.height - margin - (compact ? 34 : (layout.footer?.marginTop || 24) + 20);
+    const totalsHeight = compact ? (resumen.aplicaIVA ? 52 : 40) : (resumen.aplicaIVA ? 76 : 60);
     if (y + totalsHeight > contentBottom) {
-        drawFooter(doc);
+        drawFooter(doc, cotizacion, pageLayout);
         doc.addPage();
-        y = layout.page.marginTop;
+        y = compact ? margin : layout.page.marginTop;
     }
 
     const wTotalBlock = 220;
     const xTotalBlock = doc.page.width - margin - wTotalBlock;
 
-    doc.font('Helvetica').fontSize(10).fillColor(layout.colors.text);
+    const fontSize = compact ? 8 : 10;
+    const lineHeight = compact ? 11 : 16;
+    doc.font('Helvetica').fontSize(fontSize).fillColor(layout.colors.text);
 
     // Subtotal
     doc.text('Subtotal:', xTotalBlock, y, { width: 100 });
     doc.text(formatMoney(resumen.subtotalGeneral), xTotalBlock + 100, y, { width: wTotalBlock - 100, align: 'right' });
-    y += 16;
+    y += lineHeight;
 
     // IVA
     if (resumen.aplicaIVA) {
         doc.text(`IVA (${cotizacion.porcentajeIVA || 16}%):`, xTotalBlock, y, { width: 100 });
         doc.text(formatMoney(resumen.montoIVA), xTotalBlock + 100, y, { width: wTotalBlock - 100, align: 'right' });
-        y += 16;
+        y += lineHeight;
     }
 
-    y += 6;
+    y += compact ? 2 : 6;
 
     // Total destacado
-    const totalBoxHeight = 42;
+    const totalBoxHeight = compact ? 22 : 42;
     doc.roundedRect(xTotalBlock - 4, y - 4, wTotalBlock + 8, totalBoxHeight, 5)
         .fill(layout.colors.brand);
 
-    doc.font('Helvetica-Bold').fontSize(14).fillColor('#ffffff');
-    doc.text('TOTAL', xTotalBlock + 8, y + 8, { width: 80 });
-    doc.text(formatMoney(resumen.total), xTotalBlock + 90, y + 8, { width: wTotalBlock - 98, align: 'right' });
+    doc.font('Helvetica-Bold').fontSize(compact ? 10 : 14).fillColor('#ffffff');
+    doc.text('TOTAL', xTotalBlock + 8, y + (compact ? 5 : 8), { width: 80 });
+    doc.text(formatMoney(resumen.total), xTotalBlock + 90, y + (compact ? 5 : 8), {
+        width: wTotalBlock - 98,
+        align: 'right'
+    });
 
     // Firma / aceptación
     // Asegurarse de que siempre haya un valor para 'elaboradoPor'
@@ -429,26 +556,28 @@ function drawTotals(doc, cotizacion, startY) {
     const labelY = startY;
     const fecha = formatDate(cotizacion.fechaAceptacion || cotizacion.fechaEmision);
 
-    doc.font('Helvetica').fontSize(layout.fonts.small).fillColor(layout.colors.light);
+    doc.font('Helvetica').fontSize(compact ? 7 : layout.fonts.small).fillColor(layout.colors.light);
     doc.text('Aceptada, firma y/o sello:', margin, labelY);
-    doc.font('Helvetica-Bold').fontSize(layout.fonts.body).fillColor(layout.colors.text);
-    doc.text(firmadoPor, margin, labelY + 12);
+    doc.font('Helvetica-Bold').fontSize(compact ? 8 : layout.fonts.body).fillColor(layout.colors.text);
+    doc.text(firmadoPor, margin, labelY + (compact ? 9 : 12));
 
     if (fecha && fecha !== '—') {
-        doc.font('Helvetica').fontSize(layout.fonts.small).fillColor(layout.colors.light);
-        doc.text(`Fecha: ${fecha}`, margin, labelY + 26);
+        doc.font('Helvetica').fontSize(compact ? 7 : layout.fonts.small).fillColor(layout.colors.light);
+        doc.text(`Fecha: ${fecha}`, margin, labelY + (compact ? 19 : 26));
     }
 
     return y + totalBoxHeight + 6;
 }
 
-function drawObservations(doc, cotizacion, startY) {
+function drawObservations(doc, cotizacion, startY, pageLayout = {}) {
     let y = startY;
-    const margin = layout.page.margin;
+    const compact = pageLayout.compact;
+    const margin = pageLayout.margin ?? layout.page.margin;
     const rightMargin = doc.page.width - margin;
-    const contentBottom = doc.page.height - margin - (layout.footer?.marginTop || 24) - 20;
+    const contentBottom = doc.page.height - margin - (compact ? 34 : (layout.footer?.marginTop || 24) + 20);
+    const fontSize = compact ? 7 : 9;
 
-    doc.font('Helvetica').fontSize(9);
+    doc.font('Helvetica').fontSize(fontSize);
     const hasObs = Boolean(cotizacion.observaciones?.trim());
     const hasNotes = Boolean(cotizacion.notas?.trim());
     const texts = [
@@ -456,49 +585,50 @@ function drawObservations(doc, cotizacion, startY) {
         ...(hasNotes ? [cotizacion.notas] : []),
         ...(!hasObs && !hasNotes ? ['Sin observaciones.'] : [])
     ];
-    const observationsHeight = 10 + texts.reduce(
-        (height, text) => height + doc.heightOfString(text, { width: rightMargin - margin }) + 8,
+    const observationsHeight = (compact ? 8 : 10) + texts.reduce(
+        (height, text) => height + doc.heightOfString(text, { width: rightMargin - margin }) + (compact ? 3 : 8),
         0
     );
 
     if (y + observationsHeight > contentBottom && y > layout.page.marginTop) {
-        drawFooter(doc);
+        drawFooter(doc, cotizacion, pageLayout);
         doc.addPage();
-        y = layout.page.marginTop;
+        y = compact ? margin : layout.page.marginTop;
     }
 
-    doc.font('Helvetica-Bold').fontSize(10).fillColor('#374151');
+    doc.font('Helvetica-Bold').fontSize(compact ? 7.5 : 10).fillColor('#374151');
     doc.text('OBSERVACIONES:', margin, y);
-    y += 10;
+    y += compact ? 8 : 10;
 
-    doc.font('Helvetica').fontSize(9).fillColor('#4b5563');
+    doc.font('Helvetica').fontSize(fontSize).fillColor('#4b5563');
 
     if (hasObs) {
         doc.text(cotizacion.observaciones, margin, y, { width: rightMargin - margin });
-        y += doc.heightOfString(cotizacion.observaciones, { width: rightMargin - margin }) + 8;
+        y += doc.heightOfString(cotizacion.observaciones, { width: rightMargin - margin }) + (compact ? 3 : 8);
     }
 
     if (hasNotes) {
         doc.text(cotizacion.notas, margin, y, { width: rightMargin - margin });
-        y += doc.heightOfString(cotizacion.notas, { width: rightMargin - margin }) + 8;
+        y += doc.heightOfString(cotizacion.notas, { width: rightMargin - margin }) + (compact ? 3 : 8);
     }
 
     if (!hasObs && !hasNotes) {
         const defaultObs = 'Sin observaciones.';
         doc.text(defaultObs, margin, y, { width: rightMargin - margin });
-        y += doc.heightOfString(defaultObs, { width: rightMargin - margin }) + 8;
+        y += doc.heightOfString(defaultObs, { width: rightMargin - margin }) + (compact ? 3 : 8);
     }
 
     return y;
 }
 
-function drawFooter(doc, cotizacion) {
-    const margin = layout.page.margin;
+function drawFooter(doc, cotizacion, pageLayout = {}) {
+    const compact = pageLayout.compact;
+    const margin = pageLayout.margin ?? layout.page.margin;
 
-    doc.font('Helvetica-Oblique').fontSize(layout.footer?.noteSize || 9).fillColor('#9ca3af');
+    doc.font('Helvetica-Oblique').fontSize(compact ? 7 : (layout.footer?.noteSize || 9)).fillColor('#9ca3af');
     // Colocar el footer dentro del área imprimible para evitar creación automática
     // de una página adicional por parte de PDFKit cuando la Y está fuera del límite.
-    const footerOffset = layout.footer?.marginTop || 24;
+    const footerOffset = compact ? 18 : (layout.footer?.marginTop || 24);
     const y = doc.page.height - margin - footerOffset;
     doc.text('Gracias por su preferencia', margin, y, { align: 'center', width: doc.page.width - margin * 2 });
 }
