@@ -326,29 +326,30 @@ function drawItemsTable(doc, cotizacion, startY) {
     const bodyFontSize = 9;
     const pad = layout.table.colPadding || 6;
 
-    // Table Header
-    doc.roundedRect(margin, y, innerWidth, 22, 4).fill(layout.table.headerBg);
-    doc.fillColor(layout.colors.header).font('Helvetica-Bold').fontSize(headerFontSize);
-
-    const textY = y + 6;
-
     const xRef = margin;
     const xDesc = xRef + wRef;
     const xCant = xDesc + wDesc;
     const xUnit = xCant + wCant;
     const xTot = xUnit + wUnit;
 
-    doc.text('REF', xRef + pad, textY, { width: wRef - pad * 2, align: 'left' });
-    doc.text('DESCRIPCIÓN', xDesc + pad, textY, { width: wDesc - pad * 2, align: 'left' });
-    doc.text('CANT.', xCant + pad, textY, { width: wCant - pad * 2, align: 'right' });
-    doc.text('P. UNIT.', xUnit + pad, textY, { width: wUnit - pad * 2, align: 'right' });
-    doc.text('TOTAL', xTot + pad, textY, { width: wTotal - pad * 2, align: 'right' });
+    const contentBottom = doc.page.height - margin - (layout.footer?.marginTop || 24) - 20;
 
-    y += 26;
+    const drawTableHeader = (headerY) => {
+        doc.roundedRect(margin, headerY, innerWidth, 22, 4).fill(layout.table.headerBg);
+        doc.fillColor(layout.colors.header).font('Helvetica-Bold').fontSize(headerFontSize);
 
-    doc.font('Helvetica').fontSize(bodyFontSize).fillColor(layout.colors.text);
+        const textY = headerY + 6;
+        doc.text('REF', xRef + pad, textY, { width: wRef - pad * 2, align: 'left' });
+        doc.text('DESCRIPCIÓN', xDesc + pad, textY, { width: wDesc - pad * 2, align: 'left' });
+        doc.text('CANT.', xCant + pad, textY, { width: wCant - pad * 2, align: 'right' });
+        doc.text('P. UNIT.', xUnit + pad, textY, { width: wUnit - pad * 2, align: 'right' });
+        doc.text('TOTAL', xTot + pad, textY, { width: wTotal - pad * 2, align: 'right' });
 
-    const maxY = doc.page.height - margin - (layout.footer?.marginTop || 24) - 20;
+        doc.font('Helvetica').fontSize(bodyFontSize).fillColor(layout.colors.text);
+        return headerY + 26;
+    };
+
+    y = drawTableHeader(y);
 
     items.forEach((item, i) => {
         const bg = i % 2 === 0 ? layout.table.rowBg : '#ffffff';
@@ -357,10 +358,10 @@ function drawItemsTable(doc, cotizacion, startY) {
 
         const rowHeight = itemHeight;
 
-        // Ensure we stay inside a single page
-        if (y + rowHeight > maxY) {
-            // clamp to remaining space
-            y = Math.max(margin, maxY - rowHeight);
+        if (y + rowHeight > contentBottom) {
+            drawFooter(doc);
+            doc.addPage();
+            y = drawTableHeader(layout.page.marginTop);
         }
 
         doc.save();
@@ -386,9 +387,12 @@ function drawTotals(doc, cotizacion, startY) {
     let y = startY;
     const margin = layout.page.margin;
 
-    const maxY = doc.page.height - margin - (layout.footer?.marginTop || 24) - 30;
-    if (y > maxY) {
-        y = Math.max(margin, maxY - 60);
+    const contentBottom = doc.page.height - margin - (layout.footer?.marginTop || 24) - 20;
+    const totalsHeight = resumen.aplicaIVA ? 76 : 60;
+    if (y + totalsHeight > contentBottom) {
+        drawFooter(doc);
+        doc.addPage();
+        y = layout.page.marginTop;
     }
 
     const wTotalBlock = 220;
@@ -442,9 +446,23 @@ function drawObservations(doc, cotizacion, startY) {
     let y = startY;
     const margin = layout.page.margin;
     const rightMargin = doc.page.width - margin;
+    const contentBottom = doc.page.height - margin - (layout.footer?.marginTop || 24) - 20;
 
-    // Always render an observations section (default text if empty)
-    if (y > doc.page.height - 80) {
+    doc.font('Helvetica').fontSize(9);
+    const hasObs = Boolean(cotizacion.observaciones?.trim());
+    const hasNotes = Boolean(cotizacion.notas?.trim());
+    const texts = [
+        ...(hasObs ? [cotizacion.observaciones] : []),
+        ...(hasNotes ? [cotizacion.notas] : []),
+        ...(!hasObs && !hasNotes ? ['Sin observaciones.'] : [])
+    ];
+    const observationsHeight = 10 + texts.reduce(
+        (height, text) => height + doc.heightOfString(text, { width: rightMargin - margin }) + 8,
+        0
+    );
+
+    if (y + observationsHeight > contentBottom && y > layout.page.marginTop) {
+        drawFooter(doc);
         doc.addPage();
         y = layout.page.marginTop;
     }
@@ -454,9 +472,6 @@ function drawObservations(doc, cotizacion, startY) {
     y += 10;
 
     doc.font('Helvetica').fontSize(9).fillColor('#4b5563');
-
-    const hasObs = Boolean(cotizacion.observaciones?.trim());
-    const hasNotes = Boolean(cotizacion.notas?.trim());
 
     if (hasObs) {
         doc.text(cotizacion.observaciones, margin, y, { width: rightMargin - margin });
