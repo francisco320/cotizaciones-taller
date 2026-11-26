@@ -48,11 +48,14 @@ async function generarPDF(cotizacion, filePath, options = {}) {
 
         const sourceItems = cotizacion.resumen?.items || cotizacion.items || [];
         const compact = sourceItems.length >= 25;
+        const pageSize = sourceItems.length > 50
+            ? [21.6 * 72 / 2.54, 33 * 72 / 2.54]
+            : layout.page.size || 'letter';
         const pageLayout = {
             compact,
             margin: compact ? 24 : layout.page.margin
         };
-        const doc = new PDFDocument({ margin: pageLayout.margin, size: layout.page.size || 'letter' });
+        const doc = new PDFDocument({ margin: pageLayout.margin, size: pageSize });
         const writeStream = fs.createWriteStream(filePath);
 
         doc.pipe(writeStream);
