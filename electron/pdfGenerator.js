@@ -219,14 +219,14 @@ function drawItemsTable(doc, cotizacion, startY, pageLayout = {}) {
     const resumen = cotizacion.resumen || calcularResumenInMemory(cotizacion);
     const items = resumen.items || cotizacion.items || [];
 
-    const wRef = 25;
-    const wCant = 42;
-    const wUnit = 64;
-    const wTotal = 64;
+    const wRef = 30;
+    const wCant = 48;
+    const wUnit = 72;
+    const wTotal = 72;
     const wDesc = innerWidth - wRef - wCant - wUnit - wTotal;
 
-    const headerFontSize = 7;
-    const bodyFontSize = 7;
+    const headerFontSize = 10;
+    const bodyFontSize = 10;
     const pad = 3;
 
     const xRef = margin;
@@ -236,9 +236,9 @@ function drawItemsTable(doc, cotizacion, startY, pageLayout = {}) {
     const xTot = xUnit + wUnit;
 
     const contentBottom = doc.page.height - margin - 34;
-    const headerHeight = 15;
+    const headerHeight = 18;
     const headerTextOffset = 4;
-    const headerAfter = 18;
+    const headerAfter = 21;
 
     const drawTableHeader = (headerY) => {
         doc.roundedRect(margin, headerY, innerWidth, headerHeight, 4).fill(layout.table.headerBg);
@@ -260,10 +260,12 @@ function drawItemsTable(doc, cotizacion, startY, pageLayout = {}) {
     items.forEach((item, i) => {
         const bg = i % 2 === 0 ? layout.table.rowBg : '#ffffff';
         const itemText = String(item.descripcion || '');
-        const rowHeight = Math.max(
-            9,
-            doc.heightOfString(itemText, { width: wDesc - pad * 2 }) + 1
-        );
+        const textHeight = doc.heightOfString(itemText, {
+            width: wDesc - pad * 2,
+            font: 'Helvetica',
+            fontSize: bodyFontSize
+        });
+        const rowHeight = Math.max(14, textHeight + 3);
 
         if (y + rowHeight > contentBottom) {
             drawFooter(doc, cotizacion, pageLayout);
@@ -275,8 +277,8 @@ function drawItemsTable(doc, cotizacion, startY, pageLayout = {}) {
         doc.rect(margin, y, innerWidth, rowHeight).fill(bg);
         doc.restore();
 
-        const itemY = y + 1;
-        doc.fillColor(layout.colors.text);
+        const itemY = y + 2;
+        doc.font('Helvetica').fontSize(bodyFontSize).fillColor(layout.colors.text);
         doc.text(String(i + 1), xRef + pad, itemY, { width: wRef - pad * 2, align: 'left' });
         doc.text(itemText, xDesc + pad, itemY, { width: wDesc - pad * 2, align: 'left' });
         doc.text(String(item.cantidad || ''), xCant + pad, itemY, { width: wCant - pad * 2, align: 'right' });
