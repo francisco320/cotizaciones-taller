@@ -219,14 +219,14 @@ function drawItemsTable(doc, cotizacion, startY, pageLayout = {}) {
     const resumen = cotizacion.resumen || calcularResumenInMemory(cotizacion);
     const items = resumen.items || cotizacion.items || [];
 
-    const wRef = 30;
-    const wCant = 48;
-    const wUnit = 72;
-    const wTotal = 72;
+    const wRef = 28;
+    const wCant = 45;
+    const wUnit = 68;
+    const wTotal = 68;
     const wDesc = innerWidth - wRef - wCant - wUnit - wTotal;
 
-    const headerFontSize = 10;
-    const bodyFontSize = 10;
+    const headerFontSize = 8.5;
+    const bodyFontSize = 8.5;
     const pad = 3;
 
     const xRef = margin;
@@ -236,9 +236,9 @@ function drawItemsTable(doc, cotizacion, startY, pageLayout = {}) {
     const xTot = xUnit + wUnit;
 
     const contentBottom = doc.page.height - margin - 34;
-    const headerHeight = 18;
+    const headerHeight = 16;
     const headerTextOffset = 4;
-    const headerAfter = 21;
+    const headerAfter = 19;
 
     const drawTableHeader = (headerY) => {
         doc.roundedRect(margin, headerY, innerWidth, headerHeight, 4).fill(layout.table.headerBg);
@@ -265,7 +265,7 @@ function drawItemsTable(doc, cotizacion, startY, pageLayout = {}) {
             font: 'Helvetica',
             fontSize: bodyFontSize
         });
-        const rowHeight = Math.max(14, textHeight + 3);
+        const rowHeight = Math.max(11, textHeight + 2);
 
         if (y + rowHeight > contentBottom) {
             drawFooter(doc, cotizacion, pageLayout);
@@ -277,7 +277,7 @@ function drawItemsTable(doc, cotizacion, startY, pageLayout = {}) {
         doc.rect(margin, y, innerWidth, rowHeight).fill(bg);
         doc.restore();
 
-        const itemY = y + 2;
+        const itemY = y + 1.5;
         doc.font('Helvetica').fontSize(bodyFontSize).fillColor(layout.colors.text);
         doc.text(String(i + 1), xRef + pad, itemY, { width: wRef - pad * 2, align: 'left' });
         doc.text(itemText, xDesc + pad, itemY, { width: wDesc - pad * 2, align: 'left' });
