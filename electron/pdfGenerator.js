@@ -158,14 +158,19 @@ function drawClientInfo(doc, cotizacion, startY, pageLayout = {}) {
     ].filter(Boolean).join('   |   ');
     const addressLine = `Dirección: ${cotizacion.cliente?.direccion || '—'}`;
 
-    doc.font('Helvetica-Bold').fontSize(7.5).fillColor(layout.colors.header);
+    const titleSize = 10;
+    const bodySize = 9.5;
+
+    doc.font('Helvetica-Bold').fontSize(titleSize).fillColor(layout.colors.header);
     doc.text('CLIENTE', margin, y, { width });
-    y += 9;
-    doc.font('Helvetica').fontSize(7).fillColor(layout.colors.text);
+    y += 13;
+
+    doc.font('Helvetica').fontSize(bodySize).fillColor(layout.colors.text);
     doc.text(clientLine, margin, y, { width });
-    y += doc.heightOfString(clientLine, { width, font: 'Helvetica', fontSize: 7 }) + 1;
+    y += doc.heightOfString(clientLine, { width, font: 'Helvetica', fontSize: bodySize }) + 2;
+
     doc.text(addressLine, margin, y, { width });
-    y += doc.heightOfString(addressLine, { width, font: 'Helvetica', fontSize: 7 }) + 4;
+    y += doc.heightOfString(addressLine, { width, font: 'Helvetica', fontSize: bodySize }) + 5;
 
     return y;
 }
@@ -194,13 +199,16 @@ function drawServiceInfo(doc, cotizacion, startY, pageLayout = {}) {
         ];
 
     const text = fields.map(field => `${field.label}: ${field.value}`).join('   |   ');
+    const titleSize = 10;
+    const bodySize = 9.5;
 
-    doc.font('Helvetica-Bold').fontSize(7.5).fillColor(layout.colors.header);
+    doc.font('Helvetica-Bold').fontSize(titleSize).fillColor(layout.colors.header);
     doc.text(tipo === 'bomba_inyeccion' ? 'BOMBA DE INYECCIÓN' : 'VEHÍCULO', margin, startY, { width });
-    doc.font('Helvetica').fontSize(7).fillColor(layout.colors.text);
-    doc.text(text, margin, startY + 9, { width });
 
-    return startY + 9 + doc.heightOfString(text, { width, font: 'Helvetica', fontSize: 7 }) + 4;
+    doc.font('Helvetica').fontSize(bodySize).fillColor(layout.colors.text);
+    doc.text(text, margin, startY + 13, { width });
+
+    return startY + 13 + doc.heightOfString(text, { width, font: 'Helvetica', fontSize: bodySize }) + 5;
 }
 
 function drawItemsTable(doc, cotizacion, startY, pageLayout = {}) {
