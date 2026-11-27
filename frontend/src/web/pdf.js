@@ -41,16 +41,20 @@ export async function createQuotationPdf(quote) {
     import('jspdf'),
     loadLogo(),
   ])
-  const pdf = new jsPDF({ unit: 'mm', format: 'letter' })
+  const items = Array.isArray(quote.items) ? quote.items : []
+  const compact = items.length >= 25
+  const pdf = new jsPDF({
+    unit: 'mm',
+    format: items.length > 50 ? [216, 330] : 'letter',
+  })
   const pageWidth = pdf.internal.pageSize.getWidth()
   const pageHeight = pdf.internal.pageSize.getHeight()
-  const margin = pt(40)
-  const topMargin = pt(50)
+  const margin = pt(compact ? 24 : 40)
+  const topMargin = pt(compact ? 24 : 50)
   const contentWidth = pageWidth - margin * 2
   const right = pageWidth - margin
-  const footerTop = pageHeight - margin - pt(24)
+  const footerTop = pageHeight - margin - pt(compact ? 18 : 24)
   const company = quote.empresa || COMPANY
-  const items = Array.isArray(quote.items) ? quote.items : []
   const resumen = resumenCotizacion(items, quote.aplicaIVA, quote.porcentajeIVA)
   let y = topMargin
 
@@ -77,6 +81,21 @@ export async function createQuotationPdf(quote) {
   }
 
   const drawClientInfo = startY => {
+    if (compact) {
+      const clientLine = [
+        `Cliente: ${text(quote.cliente?.nombre)}`,
+        quote.cliente?.telefono && `Tel: ${quote.cliente.telefono}`,
+        quote.cliente?.rif && `CI/RIF: ${quote.cliente.rif}`,
+      ].filter(Boolean).join('   |   ')
+      const addressLine = `Dirección: ${text(quote.cliente?.direccion)}`
+
+      setText('bold', 7.5, [30, 41, 59])
+      pdf.text('CLIENTE', margin, startY)
+      const clientTextHeight = drawWrapped(clientLine, margin, startY + pt(9), contentWidth, 'normal', 7, [71, 85, 105])
+      const addressTextHeight = drawWrapped(addressLine, margin, startY + pt(10) + clientTextHeight, contentWidth, 'normal', 7, [71, 85, 105])
+      return startY + pt(10) + clientTextHeight + addressTextHeight + pt(4)
+    }
+
     const padding = pt(10)
     const blockHeight = pt(75)
     pdf.setDrawColor(203, 213, 225)
@@ -145,6 +164,18 @@ export async function createQuotationPdf(quote) {
           { label: 'Placa:', value: vehicle.placa || quote.placa },
         ]
 
+    if (compact) {
+      const fieldText = fields.map(field => `${field.label.replace(/:$/, '')}: ${text(field.value)}`).join('   |   ')
+      setText('bold', 7.5, [30, 41, 59])
+      pdf.text(
+        quote.tipoServicio === 'bomba_inyeccion' ? 'BOMBA DE INYECCIÓN' : 'VEHÍCULO',
+        margin,
+        startY,
+      )
+      const fieldsHeight = drawWrapped(fieldText, margin, startY + pt(9), contentWidth, 'normal', 7, [71, 85, 105])
+      return startY + pt(9) + fieldsHeight + pt(4)
+    }
+
     const padding = pt(10)
     const lineSpacing = pt(6)
     const headerHeight = pt(16)
@@ -191,12 +222,12 @@ export async function createQuotationPdf(quote) {
 
   const itemTable = (startY) => {
     let tableY = startY
-    const refWidth = pt(30)
-    const quantityWidth = pt(50)
-    const unitWidth = pt(70)
-    const totalWidth = pt(70)
+    const refWidth = pt(compact ? 25 : 30)
+    const quantityWidth = pt(compact ? 42 : 50)
+    const unitWidth = pt(compact ? 64 : 70)
+    const totalWidth = pt(compact ? 64 : 70)
     const descriptionWidth = contentWidth - refWidth - quantityWidth - unitWidth - totalWidth
-    const padding = pt(6)
+    const padding = pt(compact ? 3 : 6)
     const columns = [
       { title: 'REF', x: margin, width: refWidth, align: 'left' },
       { title: 'DESCRIPCIÓN', x: margin + refWidth, width: descriptionWidth, align: 'left' },
@@ -207,23 +238,26 @@ export async function createQuotationPdf(quote) {
 
     const drawHeader = () => {
       pdf.setFillColor(241, 245, 249)
-      pdf.roundedRect(margin, tableY, contentWidth, pt(22), pt(4), pt(4), 'F')
-      setText('bold', 8.5, [30, 41, 59])
+      pdf.roundedRect(margin, tableY, contentWidth, pt(compact ? 15 : 22), pt(4), pt(4), 'F')
+      setText('bold', compact ? 7 : 8.5, [30, 41, 59])
       for (const column of columns) {
-        pdf.text(column.title, column.x + padding, tableY + pt(15), {
+        pdf.text(column.title, column.x + padding, tableY + pt(compact ? 10 : 15), {
           maxWidth: column.width - padding * 2,
           align: column.align,
         })
       }
-      tableY += pt(26)
+      tableY += pt(compact ? 18 : 26)
     }
 
     drawHeader()
     items.forEach((item, index) => {
       const description = text(item.descripcion, '')
+      setText('normal', compact ? 7 : 9, [71, 85, 105])
       const descriptionLines = pdf.splitTextToSize(description, descriptionWidth - padding * 2)
-      const rowHeight = Math.max(pt(16), descriptionLines.length * pt(10) + pt(6))
-      if (tableY + rowHeight > footerTop - pt(20)) {
+      const rowHeight = compact
+        ? Math.max(pt(9), descriptionLines.length * pt(7 * 1.15) + pt(1))
+        : Math.max(pt(16), descriptionLines.length * pt(10) + pt(6))
+      if (tableY + rowHeight > footerTop - pt(compact ? 16 : 20)) {
         pdf.addPage()
         tableY = topMargin
         drawHeader()
@@ -233,8 +267,8 @@ export async function createQuotationPdf(quote) {
         pdf.setFillColor(248, 250, 252)
         pdf.rect(margin, tableY, contentWidth, rowHeight, 'F')
       }
-      setText('normal', 9, [71, 85, 105])
-      const textY = tableY + pt(4 + 9)
+      setText('normal', compact ? 7 : 9, [71, 85, 105])
+      const textY = tableY + pt(compact ? 1 + 7 : 4 + 9)
       pdf.text(String(index + 1), columns[0].x + padding, textY, { maxWidth: columns[0].width - padding * 2 })
       pdf.text(descriptionLines, columns[1].x + padding, textY, { maxWidth: descriptionWidth - padding * 2 })
       pdf.text(text(item.cantidad, ''), columns[2].x + padding, textY, {
@@ -252,129 +286,163 @@ export async function createQuotationPdf(quote) {
       tableY += rowHeight
     })
 
-    return tableY + pt(12)
+    return tableY + pt(compact ? 8 : 12)
   }
 
   const drawTotals = startY => {
-    const totalHeight = pt(42)
-    const summaryHeight = pt(resumen.aplicaIVA ? 54 : 38)
-    ensureSpace(summaryHeight + totalHeight + pt(20))
+    const totalHeight = pt(compact ? 22 : 42)
+    const summaryHeight = pt(compact
+      ? (resumen.aplicaIVA ? 30 : 19)
+      : (resumen.aplicaIVA ? 54 : 38))
+    ensureSpace(summaryHeight + totalHeight + pt(compact ? 12 : 20))
     const totalsY = y || startY
     const totalBlockWidth = pt(220)
     const totalBlockX = pageWidth - margin - totalBlockWidth
     let totalsLineY = totalsY
 
-    setText('normal', 10, [71, 85, 105])
-    pdf.text('Subtotal:', totalBlockX, totalsLineY + pt(10), { maxWidth: pt(100) })
-    pdf.text(formatMoney(resumen.subtotalGeneral), totalBlockX + pt(100), totalsLineY + pt(10), {
+    const fontSize = compact ? 8 : 10
+    const lineHeight = compact ? 11 : 16
+    setText('normal', fontSize, [71, 85, 105])
+    pdf.text('Subtotal:', totalBlockX, totalsLineY + pt(compact ? 8 : 10), { maxWidth: pt(100) })
+    pdf.text(formatMoney(resumen.subtotalGeneral), totalBlockX + pt(100), totalsLineY + pt(compact ? 8 : 10), {
       maxWidth: totalBlockWidth - pt(100),
       align: 'right',
     })
-    totalsLineY += pt(16)
+    totalsLineY += pt(lineHeight)
 
     if (resumen.aplicaIVA) {
-      pdf.text(`IVA (${quote.porcentajeIVA || 16}%):`, totalBlockX, totalsLineY + pt(10), { maxWidth: pt(100) })
-      pdf.text(formatMoney(resumen.montoIVA), totalBlockX + pt(100), totalsLineY + pt(10), {
+      pdf.text(`IVA (${quote.porcentajeIVA || 16}%):`, totalBlockX, totalsLineY + pt(compact ? 8 : 10), { maxWidth: pt(100) })
+      pdf.text(formatMoney(resumen.montoIVA), totalBlockX + pt(100), totalsLineY + pt(compact ? 8 : 10), {
         maxWidth: totalBlockWidth - pt(100),
         align: 'right',
       })
-      totalsLineY += pt(16)
+      totalsLineY += pt(lineHeight)
     }
-    totalsLineY += pt(6)
+    totalsLineY += pt(compact ? 2 : 6)
 
     pdf.setFillColor(5, 150, 105)
     pdf.roundedRect(totalBlockX - pt(4), totalsLineY - pt(4), totalBlockWidth + pt(8), totalHeight, pt(5), pt(5), 'F')
-    setText('bold', 14, [255, 255, 255])
-    pdf.text('TOTAL', totalBlockX + pt(8), totalsLineY + pt(22))
-    pdf.text(formatMoney(resumen.total), totalBlockX + totalBlockWidth - pt(8), totalsLineY + pt(22), {
+    setText('bold', compact ? 10 : 14, [255, 255, 255])
+    pdf.text('TOTAL', totalBlockX + pt(8), totalsLineY + pt(compact ? 14 : 22))
+    pdf.text(formatMoney(resumen.total), totalBlockX + totalBlockWidth - pt(8), totalsLineY + pt(compact ? 14 : 22), {
       align: 'right',
     })
 
     const signer = quote.elaboradoPor || 'Lariannys Villazana'
     const signatureY = totalsY
-    setText('normal', 9, [148, 163, 184])
-    pdf.text('Aceptada, firma y/o sello:', margin, signatureY + pt(9))
-    setText('bold', 11, [71, 85, 105])
-    pdf.text(signer, margin, signatureY + pt(23), { maxWidth: pt(180) })
+    setText('normal', compact ? 7 : 9, [148, 163, 184])
+    pdf.text('Aceptada, firma y/o sello:', margin, signatureY + pt(compact ? 7 : 9))
+    setText('bold', compact ? 8 : 11, [71, 85, 105])
+    pdf.text(signer, margin, signatureY + pt(compact ? 17 : 23), { maxWidth: pt(180) })
     const acceptedDate = formatDate(quote.fechaAceptacion || quote.fechaEmision)
     if (acceptedDate !== '—') {
-      setText('normal', 9, [148, 163, 184])
-      pdf.text(`Fecha: ${acceptedDate}`, margin, signatureY + pt(35))
+      setText('normal', compact ? 7 : 9, [148, 163, 184])
+      pdf.text(`Fecha: ${acceptedDate}`, margin, signatureY + pt(compact ? 27 : 35))
     }
 
     y = totalsLineY + totalHeight + pt(6)
   }
 
   const drawObservations = () => {
-    if (y > footerTop - pt(80)) addPage()
+    if (compact) {
+      const observation = quote.observaciones?.trim() || quote.notas?.trim() || 'Sin observaciones.'
+      setText('normal', 7, [75, 85, 99])
+      const lines = pdf.splitTextToSize(observation, contentWidth)
+      const observationHeight = pt(8 + lines.length * 7 * 1.15 + 3)
+      ensureSpace(observationHeight)
+    } else if (y > footerTop - pt(80)) {
+      addPage()
+    }
 
-    setText('bold', 10, [55, 65, 81])
-    pdf.text('OBSERVACIONES:', margin, y + pt(10))
-    y += pt(10)
+    setText('bold', compact ? 7.5 : 10, [55, 65, 81])
+    pdf.text('OBSERVACIONES:', margin, y + pt(compact ? 8 : 10))
+    y += pt(compact ? 8 : 10)
     const observation = quote.observaciones?.trim() || quote.notas?.trim() || 'Sin observaciones.'
     const lines = pdf.splitTextToSize(observation, contentWidth)
-    setText('normal', 9, [75, 85, 99])
-    pdf.text(lines, margin, y + pt(9), { maxWidth: contentWidth })
+    setText('normal', compact ? 7 : 9, [75, 85, 99])
+    pdf.text(lines, margin, y + pt(compact ? 7 : 9), { maxWidth: contentWidth })
   }
 
   const drawFooter = () => {
     const pageCount = pdf.getNumberOfPages()
     for (let page = 1; page <= pageCount; page += 1) {
       pdf.setPage(page)
-      setText('italic', 9, [156, 163, 175])
+      setText('italic', compact ? 7 : 9, [156, 163, 175])
       pdf.text('Gracias por su preferencia', pageWidth / 2, footerTop, { align: 'center' })
     }
   }
 
-  const logoMaxWidth = Math.min(pt(120), contentWidth * 0.22)
-  const logoMaxHeight = pt(120)
+  const logoMaxWidth = Math.min(pt(compact ? 44 : 120), contentWidth * 0.22)
+  const logoMaxHeight = pt(compact ? 34 : 120)
   const logoScale = Math.min(1, logoMaxWidth / logo.naturalWidth, logoMaxHeight / logo.naturalHeight)
   const logoWidth = logo.naturalWidth * logoScale
   const logoHeight = logo.naturalHeight * logoScale
-  const headerTextX = margin + logoWidth + pt(12)
-  const metadataX = right - pt(160)
-  const companyTextWidth = Math.max(pt(120), metadataX - headerTextX - pt(12))
+  const headerTextX = margin + logoWidth + pt(compact ? 7 : 12)
+  const metadataX = right - pt(compact ? 180 : 160)
+  const companyTextWidth = Math.max(pt(compact ? 130 : 120), metadataX - headerTextX - pt(compact ? 8 : 12))
 
   pdf.addImage(logo, 'PNG', margin, y, logoWidth, logoHeight)
   const companyName = company.nombre || 'Empresa'
-  const titleHeight = drawWrapped(companyName, headerTextX, y, companyTextWidth, 'bold', 22, [30, 41, 59])
-  let companyY = y + titleHeight + pt(4)
-  for (const [label, value] of [
-    ['Teléfono:', company.telefono],
-    ['Email:', company.email],
-  ]) {
-    if (!value) continue
-    setText('normal', 9, [148, 163, 184])
-    pdf.text(`${label} ${value}`, headerTextX, companyY + pt(9))
-    companyY += pt(12)
+  const titleHeight = drawWrapped(companyName, headerTextX, y, companyTextWidth, 'bold', compact ? 12 : 22, [30, 41, 59])
+  let companyY = y + titleHeight + pt(compact ? 2 : 4)
+  if (compact) {
+    const contacts = [
+      company.telefono && `Tel: ${company.telefono}`,
+      company.email,
+    ].filter(Boolean).join(' | ')
+    if (contacts) {
+      setText('normal', 7, [148, 163, 184])
+      const contactLines = pdf.splitTextToSize(contacts, companyTextWidth)
+      pdf.text(contactLines, headerTextX, companyY + pt(7), { maxWidth: companyTextWidth })
+      companyY += contactLines.length * pt(7 * 1.15) + pt(1)
+    }
+  } else {
+    for (const [label, value] of [
+      ['Teléfono:', company.telefono],
+      ['Email:', company.email],
+    ]) {
+      if (!value) continue
+      setText('normal', 9, [148, 163, 184])
+      pdf.text(`${label} ${value}`, headerTextX, companyY + pt(9))
+      companyY += pt(12)
+    }
   }
   if (company.direccion) {
-    companyY += drawWrapped(company.direccion, headerTextX, companyY, companyTextWidth, 'normal', 9, [148, 163, 184]) + pt(4)
+    const addressHeight = drawWrapped(
+      company.direccion,
+      headerTextX,
+      companyY,
+      companyTextWidth,
+      'normal',
+      compact ? 7 : 9,
+      [148, 163, 184],
+    )
+    companyY += addressHeight + pt(compact ? 1 : 4)
   }
 
   const number = String(quote.numero ?? 0).padStart(7, '0')
-  setText('bold', 22, [5, 150, 105])
-  pdf.text('COTIZACIÓN', right, y + pt(22), { align: 'right' })
-  setText('bold', 13, [71, 85, 105])
-  pdf.text(`# ${number}`, right, y + pt(35), { align: 'right' })
-  setText('bold', 9, [71, 85, 105])
-  pdf.text('Fecha de Emisión:', metadataX, y + pt(59))
-  setText('normal', 9, [71, 85, 105])
-  pdf.text(formatDate(quote.fechaEmision), right, y + pt(59), { align: 'right' })
-  let dateY = y + pt(74)
+  setText('bold', compact ? 14 : 22, [5, 150, 105])
+  pdf.text('COTIZACIÓN', right, y + pt(compact ? 14 : 22), { align: 'right' })
+  setText('bold', compact ? 10 : 13, [71, 85, 105])
+  pdf.text(`# ${number}`, right, y + pt(compact ? 26 : 35), { align: 'right' })
+  setText('bold', compact ? 7 : 9, [71, 85, 105])
+  pdf.text(compact ? 'Emisión:' : 'Fecha de Emisión:', metadataX, y + pt(compact ? 39 : 59))
+  setText('normal', compact ? 7 : 9, [71, 85, 105])
+  pdf.text(formatDate(quote.fechaEmision), right, y + pt(compact ? 39 : 59), { align: 'right' })
+  let dateY = y + pt(compact ? 49 : 74)
   if (quote.fechaVencimiento) {
-    setText('bold', 9, [71, 85, 105])
+    setText('bold', compact ? 7 : 9, [71, 85, 105])
     pdf.text('Vencimiento:', metadataX, dateY)
-    setText('normal', 9, [71, 85, 105])
+    setText('normal', compact ? 7 : 9, [71, 85, 105])
     pdf.text(formatDate(quote.fechaVencimiento), right, dateY, { align: 'right' })
-    dateY += pt(20)
+    dateY += pt(compact ? 11 : 20)
   }
 
-  y = Math.max(companyY, y + logoHeight, dateY) + pt(15)
+  y = Math.max(companyY, y + logoHeight, dateY) + pt(compact ? 4 : 15)
   pdf.setDrawColor(203, 213, 225)
-  pdf.setLineWidth(pt(1))
+  pdf.setLineWidth(pt(compact ? 0.7 : 1))
   pdf.line(margin, y, right, y)
-  y += pt(15)
+  y += pt(compact ? 5 : 15)
 
   y = drawClientInfo(y)
   y = drawServiceInfo(y)
